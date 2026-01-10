@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   CheckCircle,
@@ -9,7 +9,9 @@ import {
   Download,
   FileText,
   Layers,
+  LogOut,
 } from "lucide-react";
+import { useAppContext } from "@/context/AppContext";
 
 const mainNavItems = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -24,6 +26,13 @@ const reportNavItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { resetAll } = useAppContext();
+
+  const handleEndSession = () => {
+    resetAll();
+    router.push("/");
+  };
 
   return (
     <aside className="w-64 h-screen bg-[#14141a] border-r border-[#2a2a36] flex flex-col">
@@ -85,6 +94,17 @@ export default function Sidebar() {
           </ul>
         </div>
       </nav>
+
+      {/* End Session Button */}
+      <div className="px-3 pb-2">
+        <button
+          onClick={handleEndSession}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors"
+        >
+          <LogOut className="w-5 h-5" />
+          <span className="text-sm font-medium">End Session</span>
+        </button>
+      </div>
 
       {/* User Profile */}
       <div className="p-4 border-t border-[#2a2a36]">
