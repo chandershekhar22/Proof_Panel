@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Link2, FileText, Filter, Check, Download, ChevronDown } from "lucide-react";
+import { Link2, FileText, Filter, Check, Download, ChevronDown, Table, CheckCircle, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { useAppContext, Respondent } from "@/context/AppContext";
 
 // Data endpoints
 const endpoints = [
@@ -59,6 +61,18 @@ const filterCategories = {
     ],
   },
 };
+
+interface DatasetResponse {
+  success: boolean;
+  data: {
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+    records: Respondent[];
+  };
+  appliedFilters: Record<string, string[]>;
+}
 
 // Dropdown component with multi-select and select all
 function FilterDropdown({
@@ -168,20 +182,30 @@ function FilterDropdown({
 }
 
 export default function Dashboard() {
-  const [apiBaseUrl, setApiBaseUrl] = useState("https://api.panel.example.com");
-  const [apiKey, setApiKey] = useState("");
-  const [environment, setEnvironment] = useState("Production");
-  const [isConnected, setIsConnected] = useState(false);
-  const [selectedEndpoint, setSelectedEndpoint] = useState<string | null>(null);
+  const {
+    apiBaseUrl,
+    setApiBaseUrl,
+    apiKey,
+    setApiKey,
+    environment,
+    setEnvironment,
+    isConnected,
+    setIsConnected,
+    selectedEndpoint,
+    setSelectedEndpoint,
+    selectedFilters,
+    setSelectedFilters,
+    loadedData,
+    setLoadedData,
+    totalRecords,
+    setTotalRecords,
+    resetFilters,
+    setSelectedSource,
+    setSelectedQueries,
+  } = useAppContext();
 
-  // Filter states
-  const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>({
-    employmentStatus: [],
-    jobTitle: [],
-    jobFunction: [],
-    companySize: [],
-    industry: [],
-  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleConnect = () => {
     if (apiKey.trim()) {
@@ -190,25 +214,93 @@ export default function Dashboard() {
   };
 
   const handleFilterChange = (category: string, values: string[]) => {
-    setSelectedFilters((prev) => ({
-      ...prev,
-      [category]: values,
-    }));
-  };
-
-  const resetFilters = () => {
     setSelectedFilters({
-      employmentStatus: [],
-      jobTitle: [],
-      jobFunction: [],
-      companySize: [],
-      industry: [],
+      ...selectedFilters,
+      [category]: values,
     });
   };
 
-  const handleLoadDataset = () => {
-    console.log("Loading dataset with filters:", selectedFilters);
-    console.log("Selected endpoint:", selectedEndpoint);
+  const buildQueryParams = () => {
+    const params = new URLSearchParams();
+
+    // Add filters (AND condition - only add if selected)
+    Object.entries(selectedFilters).forEach(([key, values]) => {
+      if (values.length > 0) {
+        params.append(key, values.join(','));
+      }
+    });
+
+    // Get all records (large pageSize)
+    params.append('pageSize', '1000');
+    params.append('page', '1');
+
+    return params.toString();
+  };
+
+  const handleLoadDataset = async () => {
+    if (!selectedEndpoint) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const endpoint = endpoints.find(e => e.id === selectedEndpoint);
+      if (!endpoint) return;
+
+      const queryParams = buildQueryParams();
+      const url = `${apiBaseUrl}${endpoint.path}?${queryParams}`;
+
+      console.log("Fetching from:", url);
+
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data: DatasetResponse = await response.json();
+
+      if (data.success) {
+        setLoadedData(data.data.records);
+        setTotalRecords(data.data.total);
+        // Reset Manage Proof state when new data is loaded
+        setSelectedSource(null);
+        setSelectedQueries([]);
+      } else {
+        throw new Error("Failed to load dataset");
+      }
+    } catch (err) {
+      console.error("Error loading dataset:", err);
+      setError(err instanceof Error ? err.message : "Failed to load dataset");
+      setLoadedData(null);
+      setTotalRecords(0);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Calculate data fields count (number of fields in a respondent object)
+  const dataFieldsCount = loadedData && loadedData.length > 0
+    ? Object.keys(loadedData[0]).length
+    : 0;
+
+  // Calculate completeness (percentage of non-null fields)
+  const calculateCompleteness = () => {
+    if (!loadedData || loadedData.length === 0) return 0;
+
+    let totalFields = 0;
+    let filledFields = 0;
+
+    loadedData.forEach(record => {
+      Object.values(record).forEach(value => {
+        totalFields++;
+        if (value !== null && value !== undefined && value !== '') {
+          filledFields++;
+        }
+      });
+    });
+
+    return totalFields > 0 ? ((filledFields / totalFields) * 100).toFixed(1) : 0;
   };
 
   return (
@@ -244,7 +336,7 @@ export default function Dashboard() {
               onChange={(e) => setApiBaseUrl(e.target.value)}
               disabled={isConnected}
               className="w-full bg-[#0f0f13] border border-[#2a2a36] rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors disabled:opacity-50"
-              placeholder="https://api.panel.example.com"
+              placeholder="http://localhost:3001"
             />
           </div>
 
@@ -332,7 +424,7 @@ export default function Dashboard() {
           </div>
 
           {/* Filter Data Points */}
-          <div className="bg-[#1a1a24] rounded-xl p-6 border border-[#2a2a36]">
+          <div className="bg-[#1a1a24] rounded-xl p-6 border border-[#2a2a36] mb-6">
             <div className="flex items-center gap-3 mb-6">
               <Filter className="w-5 h-5 text-white" />
               <h2 className="text-lg font-semibold text-white">Filter Data Points</h2>
@@ -361,14 +453,73 @@ export default function Dashboard() {
               </button>
               <button
                 onClick={handleLoadDataset}
-                disabled={!selectedEndpoint}
+                disabled={!selectedEndpoint || isLoading}
                 className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium px-6 py-3 rounded-lg transition-colors flex items-center gap-2"
               >
-                <Download className="w-4 h-4" />
-                Load Dataset
+                {isLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
+                {isLoading ? "Loading..." : "Load Dataset"}
               </button>
             </div>
           </div>
+
+          {/* Dataset Preview - Show after loading */}
+          {(loadedData || error) && (
+            <div className="bg-[#1a1a24] rounded-xl p-6 border border-[#2a2a36]">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <Table className="w-5 h-5 text-white" />
+                  <h2 className="text-lg font-semibold text-white">Dataset Preview</h2>
+                </div>
+                {loadedData && (
+                  <span className="text-gray-400 text-sm">{totalRecords.toLocaleString()} records loaded</span>
+                )}
+              </div>
+
+              {error ? (
+                <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 text-red-400">
+                  Error: {error}
+                </div>
+              ) : (
+                <>
+                  {/* Stats Grid */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div className="bg-[#0f0f13] rounded-lg p-6 text-center border border-[#2a2a36]">
+                      <p className="text-3xl font-bold text-white mb-1">{totalRecords.toLocaleString()}</p>
+                      <p className="text-xs text-gray-400 uppercase tracking-wider">Total Records</p>
+                    </div>
+                    <div className="bg-[#0f0f13] rounded-lg p-6 text-center border border-[#2a2a36]">
+                      <p className="text-3xl font-bold text-white mb-1">{dataFieldsCount}</p>
+                      <p className="text-xs text-gray-400 uppercase tracking-wider">Data Fields</p>
+                    </div>
+                    <div className="bg-[#0f0f13] rounded-lg p-6 text-center border border-[#2a2a36]">
+                      <p className="text-3xl font-bold text-white mb-1">{calculateCompleteness()}%</p>
+                      <p className="text-xs text-gray-400 uppercase tracking-wider">Completeness</p>
+                    </div>
+                    <div className="bg-[#0f0f13] rounded-lg p-6 text-center border border-[#2a2a36]">
+                      <p className="text-3xl font-bold text-white mb-1">0</p>
+                      <p className="text-xs text-gray-400 uppercase tracking-wider">Errors</p>
+                    </div>
+                  </div>
+
+                  {/* Success Message */}
+                  <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4 flex items-center gap-3">
+                    <CheckCircle className="w-5 h-5 text-green-400" />
+                    <p className="text-green-400">
+                      Dataset loaded successfully! Navigate to{" "}
+                      <Link href="/manage-proof" className="text-purple-400 font-medium hover:underline">
+                        Manage Proof
+                      </Link>{" "}
+                      to run verification queries.
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </>
       )}
     </div>
