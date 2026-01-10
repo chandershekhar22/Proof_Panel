@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Link2, FileText, Filter, Check, Download } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Link2, FileText, Filter, Check, Download, ChevronDown } from "lucide-react";
 
 // Data endpoints
 const endpoints = [
@@ -14,15 +14,15 @@ const endpoints = [
 // Filter categories based on the document
 const filterCategories = {
   employmentStatus: {
-    title: "7.1 Employment Status Proofs",
+    title: "Employment Status",
     options: ["Currently employed", "Recently active"],
   },
   jobTitle: {
-    title: "7.2 Job Title / Seniority Proofs",
+    title: "Job Title / Seniority",
     options: ["C-Level", "VP+", "Director+", "Manager+", "Individual Contributor"],
   },
   jobFunction: {
-    title: "7.3 Job Function Proofs",
+    title: "Job Function",
     options: [
       "IT Decision Maker",
       "Marketing DM",
@@ -37,7 +37,7 @@ const filterCategories = {
     ],
   },
   companySize: {
-    title: "7.4 Company Size (Firmographics) Proofs",
+    title: "Company Size",
     options: [
       "Enterprise (10K+)",
       "Large (1K-10K)",
@@ -47,7 +47,7 @@ const filterCategories = {
     ],
   },
   industry: {
-    title: "7.5 Industry (Vertical) Proofs",
+    title: "Industry",
     options: [
       "Technology",
       "Financial Services",
@@ -59,6 +59,113 @@ const filterCategories = {
     ],
   },
 };
+
+// Dropdown component with multi-select and select all
+function FilterDropdown({
+  title,
+  options,
+  selected,
+  onChange,
+}: {
+  title: string;
+  options: string[];
+  selected: string[];
+  onChange: (values: string[]) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const allSelected = selected.length === options.length;
+  const noneSelected = selected.length === 0;
+
+  const handleSelectAll = () => {
+    if (allSelected) {
+      onChange([]);
+    } else {
+      onChange([...options]);
+    }
+    setIsOpen(false);
+  };
+
+  const handleOptionClick = (option: string) => {
+    if (selected.includes(option)) {
+      onChange(selected.filter((v) => v !== option));
+    } else {
+      onChange([...selected, option]);
+    }
+    setIsOpen(false);
+  };
+
+  const getDisplayText = () => {
+    if (noneSelected) return `Select ${title.toLowerCase()}`;
+    if (allSelected) return `All selected`;
+    if (selected.length === 1) return selected[0];
+    return `${selected.length} selected`;
+  };
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+        {title}
+      </label>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full bg-[#0f0f13] border border-[#2a2a36] rounded-lg px-4 py-3 text-left text-white focus:outline-none focus:border-purple-500 transition-colors flex items-center justify-between hover:border-[#3a3a46]"
+      >
+        <span className={noneSelected ? "text-gray-400" : "text-white"}>
+          {getDisplayText()}
+        </span>
+        <ChevronDown
+          className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {isOpen && (
+        <div className="absolute z-50 mt-1 w-full bg-[#1e1e28] border border-[#2a2a36] rounded-lg shadow-xl max-h-64 overflow-y-auto">
+          {/* Select All Option */}
+          <div
+            onClick={handleSelectAll}
+            className={`px-4 py-3 cursor-pointer flex items-center justify-between border-b border-[#2a2a36] ${
+              allSelected
+                ? "bg-purple-600/20 text-purple-400"
+                : "hover:bg-[#2a2a36] text-gray-300"
+            }`}
+          >
+            <span className="font-medium">Select All</span>
+            {allSelected && <Check className="w-4 h-4 text-purple-400" />}
+          </div>
+
+          {/* Options */}
+          {options.map((option) => (
+            <div
+              key={option}
+              onClick={() => handleOptionClick(option)}
+              className={`px-4 py-3 cursor-pointer flex items-center justify-between ${
+                selected.includes(option)
+                  ? "bg-purple-600/20 text-purple-400"
+                  : "hover:bg-[#2a2a36] text-gray-300"
+              }`}
+            >
+              <span>{option}</span>
+              {selected.includes(option) && <Check className="w-4 h-4 text-purple-400" />}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Dashboard() {
   const [apiBaseUrl, setApiBaseUrl] = useState("https://api.panel.example.com");
@@ -82,15 +189,11 @@ export default function Dashboard() {
     }
   };
 
-  const handleFilterChange = (category: string, value: string) => {
-    setSelectedFilters((prev) => {
-      const current = prev[category] || [];
-      if (current.includes(value)) {
-        return { ...prev, [category]: current.filter((v) => v !== value) };
-      } else {
-        return { ...prev, [category]: [...current, value] };
-      }
-    });
+  const handleFilterChange = (category: string, values: string[]) => {
+    setSelectedFilters((prev) => ({
+      ...prev,
+      [category]: values,
+    }));
   };
 
   const resetFilters = () => {
@@ -235,28 +338,16 @@ export default function Dashboard() {
               <h2 className="text-lg font-semibold text-white">Filter Data Points</h2>
             </div>
 
-            <div className="space-y-6">
+            {/* Filter Dropdowns Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
               {Object.entries(filterCategories).map(([key, category]) => (
-                <div key={key}>
-                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-                    {category.title}
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {category.options.map((option) => (
-                      <button
-                        key={option}
-                        onClick={() => handleFilterChange(key, option)}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                          selectedFilters[key]?.includes(option)
-                            ? "bg-purple-600 text-white"
-                            : "bg-[#0f0f13] text-gray-400 border border-[#2a2a36] hover:border-purple-500 hover:text-white"
-                        }`}
-                      >
-                        {option}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <FilterDropdown
+                  key={key}
+                  title={category.title}
+                  options={category.options}
+                  selected={selectedFilters[key] || []}
+                  onChange={(values) => handleFilterChange(key, values)}
+                />
               ))}
             </div>
 
