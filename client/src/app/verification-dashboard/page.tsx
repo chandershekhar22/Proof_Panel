@@ -15,6 +15,15 @@ interface VerificationItem {
   zkpResult: "Pass" | "Fail" | "Pending";
 }
 
+// Sent email result type
+interface SentEmailResult {
+  hashId: string;
+  email: string;
+  verificationLink: string;
+  messageId: string;
+  isTestAccount: boolean;
+}
+
 export default function VerificationDashboard() {
   const {
     isConnected,
@@ -30,6 +39,8 @@ export default function VerificationDashboard() {
   const [isSending, setIsSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const [verificationItems, setVerificationItems] = useState<VerificationItem[]>([]);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [sentEmails, setSentEmails] = useState<SentEmailResult[]>([]);
 
   // Generate verification items from loaded data on mount
   useEffect(() => {
@@ -109,6 +120,9 @@ export default function VerificationDashboard() {
         throw new Error(result.error || "Failed to send emails");
       }
 
+      // Store sent emails for success modal
+      setSentEmails(result.data.sent);
+
       // Update email statuses based on results
       setVerificationItems(prevItems => {
         return prevItems.map(item => {
@@ -129,13 +143,11 @@ export default function VerificationDashboard() {
         });
       });
 
-      // Close modal and show success
+      // Close email modal and show success modal
       setShowEmailModal(false);
+      setShowSuccessModal(true);
       setSmtpEmail("");
       setSmtpPassword("");
-
-      // Show success message
-      alert(`Successfully sent ${result.data.sent.length} emails${result.data.failed.length > 0 ? `, ${result.data.failed.length} failed` : ""}`);
 
     } catch (error) {
       console.error("Error sending emails:", error);
@@ -477,6 +489,64 @@ export default function VerificationDashboard() {
                 ) : (
                   `Send to All (${pendingEmailCount})`
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Modal - Emails Sent */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl w-full max-w-xl mx-4 max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="p-6 pb-4">
+              <h2 className="text-2xl font-bold text-gray-900">Send Verification Emails</h2>
+              <p className="text-gray-500 mt-1">Send verification links to respondents for profile verification</p>
+            </div>
+
+            {/* Stats Section */}
+            <div className="mx-6 p-4 bg-gray-50 rounded-lg flex justify-between items-center">
+              <div>
+                <p className="text-blue-600 font-medium text-sm">Pending Verification</p>
+                <p className="text-3xl font-bold text-gray-900">{pendingEmailCount}</p>
+                <p className="text-blue-600 text-sm">respondents waiting for email</p>
+              </div>
+              <div className="text-right">
+                <p className="text-blue-600 font-medium text-sm">Already Sent</p>
+                <p className="text-3xl font-bold text-gray-900">{sentEmailCount}</p>
+                <p className="text-blue-600 text-sm">emails sent</p>
+              </div>
+            </div>
+
+            {/* Emails Sent Successfully */}
+            <div className="mx-6 mt-4 p-4 bg-green-50 rounded-lg border border-green-200">
+              <h3 className="font-medium text-green-700 mb-3">Emails Sent Successfully from</h3>
+              <div className="max-h-48 overflow-y-auto space-y-3">
+                {sentEmails.map((email, index) => (
+                  <div key={index} className="bg-white p-3 rounded border border-green-100">
+                    <p className="font-mono text-sm text-gray-900">{email.hashId}</p>
+                    <p className="text-gray-500 text-sm">{email.email}</p>
+                    <p className="text-blue-600 text-xs break-all mt-1">{email.verificationLink}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* How it works */}
+            <div className="mx-6 mt-4 p-4">
+              <p className="text-gray-600 text-sm">
+                <span className="font-medium text-gray-900">How it works:</span> Each respondent will receive a unique verification link. When they click the link, they&apos;ll be redirected to complete their profile verification.
+              </p>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="p-6 pt-2">
+              <button
+                onClick={() => setShowSuccessModal(false)}
+                className="w-full px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg transition-colors"
+              >
+                Close
               </button>
             </div>
           </div>

@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const nodemailer = require('nodemailer');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = 3002;
@@ -14,6 +15,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // Send verification emails via SMTP
+// Only sends real email to test accounts, others are marked as sent
 app.post('/api/send-verification-emails', async (req, res) => {
   const { smtpEmail, smtpPassword, recipients } = req.body;
 
@@ -51,38 +53,57 @@ app.post('/api/send-verification-emails', async (req, res) => {
       failed: []
     };
 
-    // Send emails to all recipients
+    // Process all recipients
     for (const recipient of recipients) {
-      const verificationLink = `https://verify.proofpanel.com/verify/${recipient.hashId}?token=${generateToken()}`;
+      const verificationToken = generateToken();
+      const verificationLink = `https://verify.proofpanel.com/verify/${recipient.hashId}?token=${verificationToken}`;
 
-      const mailOptions = {
-        from: `"ProofPanel Verification" <${smtpEmail}>`,
-        to: recipient.email,
-        subject: 'Verify Your Profile - ProofPanel',
-        html: generateEmailTemplate(recipient, verificationLink)
-      };
+      // Check if this is a test account (hashId starts with "TEST-")
+      const isTestAccount = recipient.hashId.startsWith('TEST-');
 
-      try {
-        const info = await transporter.sendMail(mailOptions);
-        console.log(`Email sent to ${recipient.email}: ${info.messageId}`);
+      if (isTestAccount) {
+        // Send real email only to test account
+        const mailOptions = {
+          from: `"ProofPanel Verification" <${smtpEmail}>`,
+          to: recipient.email,
+          subject: 'Verify Your Profile - ProofPanel',
+          html: generateEmailTemplate(recipient, verificationLink)
+        };
+
+        try {
+          const info = await transporter.sendMail(mailOptions);
+          console.log(`Real email sent to test account ${recipient.email}: ${info.messageId}`);
+          results.sent.push({
+            hashId: recipient.hashId,
+            email: recipient.email,
+            verificationLink,
+            messageId: info.messageId,
+            isTestAccount: true
+          });
+        } catch (emailError) {
+          console.error(`Failed to send email to ${recipient.email}:`, emailError.message);
+          results.failed.push({
+            hashId: recipient.hashId,
+            email: recipient.email,
+            error: emailError.message
+          });
+        }
+      } else {
+        // For non-test accounts, just mark as sent without actually sending
+        console.log(`Simulated email for ${recipient.email} (not a test account)`);
         results.sent.push({
           hashId: recipient.hashId,
           email: recipient.email,
-          messageId: info.messageId
-        });
-      } catch (emailError) {
-        console.error(`Failed to send email to ${recipient.email}:`, emailError.message);
-        results.failed.push({
-          hashId: recipient.hashId,
-          email: recipient.email,
-          error: emailError.message
+          verificationLink,
+          messageId: `simulated-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          isTestAccount: false
         });
       }
     }
 
     res.json({
       success: true,
-      message: `Sent ${results.sent.length} emails successfully, ${results.failed.length} failed`,
+      message: `Processed ${results.sent.length} emails (${results.sent.filter(s => s.isTestAccount).length} real, ${results.sent.filter(s => !s.isTestAccount).length} simulated), ${results.failed.length} failed`,
       data: results
     });
 
@@ -97,9 +118,7 @@ app.post('/api/send-verification-emails', async (req, res) => {
 
 // Generate a random verification token
 function generateToken() {
-  return Array.from({ length: 32 }, () =>
-    Math.random().toString(36).charAt(2)
-  ).join('');
+  return crypto.randomBytes(16).toString('hex');
 }
 
 // Generate email HTML template
@@ -185,12 +204,15 @@ app.listen(PORT, () => {
   console.log(`\n📚 Available Endpoints:`);
   console.log(`   GET  /api/health                      - Health check`);
   console.log(`   POST /api/send-verification-emails    - Send verification emails via SMTP`);
+  console.log(`\n📧 Email Behavior:`);
+  console.log(`   - Real emails are ONLY sent to test accounts (hashId starts with "TEST-")`);
+  console.log(`   - Other panelists are marked as "Sent" without actual email delivery`);
   console.log(`\n📧 Email API Request Body:`);
   console.log(`   {`);
   console.log(`     "smtpEmail": "your-email@gmail.com",`);
   console.log(`     "smtpPassword": "your-app-password",`);
   console.log(`     "recipients": [`);
-  console.log(`       { "hashId": "abc123", "email": "recipient@example.com" }`);
+  console.log(`       { "hashId": "TEST-abc123", "email": "test@example.com" }`);
   console.log(`     ]`);
   console.log(`   }`);
 });

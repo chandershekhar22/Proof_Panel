@@ -129,7 +129,10 @@ function getRespondents(count = 500) {
 
 // Filter respondents based on query params
 function filterRespondents(respondents, filters) {
-  return respondents.filter(r => {
+  const filtered = respondents.filter(r => {
+    // Always include test account regardless of filters
+    if (r.isTestAccount) return true;
+
     if (filters.employmentStatus && filters.employmentStatus.length > 0) {
       if (!filters.employmentStatus.includes(r.employmentStatus)) return false;
     }
@@ -147,6 +150,8 @@ function filterRespondents(respondents, filters) {
     }
     return true;
   });
+
+  return filtered;
 }
 
 // Parse filter params from query string
