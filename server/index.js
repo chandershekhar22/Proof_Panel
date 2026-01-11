@@ -56,7 +56,9 @@ app.post('/api/send-verification-emails', async (req, res) => {
     // Process all recipients
     for (const recipient of recipients) {
       const verificationToken = generateToken();
-      const verificationLink = `https://verify.proofpanel.com/verify/${recipient.hashId}?token=${verificationToken}`;
+      // Use localhost for development, change to production URL in production
+      const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const verificationLink = `${baseUrl}/verify/${recipient.hashId}?token=${verificationToken}`;
 
       // Check if this is a test account (hashId starts with "TEST-")
       const isTestAccount = recipient.hashId.startsWith('TEST-');
