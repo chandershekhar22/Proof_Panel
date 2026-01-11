@@ -1,9 +1,13 @@
 const express = require('express');
 const cors = require('cors');
 const crypto = require('crypto');
+require('dotenv').config();
 
 const app = express();
 const PORT = 3001;
+
+// Test email from environment variable
+const TEST_EMAIL = process.env.TEST_EMAIL || 'test@example.com';
 
 app.use(cors());
 app.use(express.json());
@@ -90,11 +94,35 @@ function generateRespondent() {
   };
 }
 
+// Generate test respondent with the configured test email
+function generateTestRespondent() {
+  return {
+    hashId: 'TEST-' + crypto.randomBytes(8).toString('hex'),
+    firstName: 'Test',
+    lastName: 'User',
+    email: TEST_EMAIL,
+    company: 'ProofPanel Test',
+    location: 'Test Location',
+    employmentStatus: 'Currently employed',
+    jobTitle: 'C-Level',
+    jobFunction: 'IT Decision Maker',
+    companySize: 'Enterprise (10K+)',
+    industry: 'Technology',
+    createdAt: new Date().toISOString(),
+    lastActiveAt: new Date().toISOString(),
+    verified: false,
+    isTestAccount: true
+  };
+}
+
 // Generate dataset
 let respondentsCache = null;
 function getRespondents(count = 500) {
   if (!respondentsCache) {
-    respondentsCache = Array.from({ length: count }, generateRespondent);
+    // Always include the test respondent as the first item
+    const testRespondent = generateTestRespondent();
+    const otherRespondents = Array.from({ length: count - 1 }, generateRespondent);
+    respondentsCache = [testRespondent, ...otherRespondents];
   }
   return respondentsCache;
 }
@@ -386,6 +414,9 @@ app.get('/api/v1/panel/stats', (req, res) => {
 // Start server
 app.listen(PORT, () => {
   console.log(`\n🚀 Mock API Server running at http://localhost:${PORT}`);
+  console.log(`\n📧 Test Email Configuration:`);
+  console.log(`   TEST_EMAIL: ${TEST_EMAIL}`);
+  console.log(`   (This email will always be the first panelist for testing)`);
   console.log(`\n📚 Available Endpoints:`);
   console.log(`   GET /api/health                    - Health check`);
   console.log(`   GET /api/v1/panel/filters          - Get filter options`);

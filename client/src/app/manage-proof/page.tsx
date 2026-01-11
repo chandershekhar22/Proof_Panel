@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Settings2, Clock, Check, Maximize2 } from "lucide-react";
 import { useAppContext } from "@/context/AppContext";
 
@@ -67,6 +68,7 @@ const categoryNames: Record<string, string> = {
 };
 
 export default function ManageProof() {
+  const router = useRouter();
   const {
     isConnected,
     loadedData,
@@ -389,7 +391,10 @@ export default function ManageProof() {
               {/* Run Verification Button */}
               {selectedQueries.length > 0 && (
                 <div className="flex justify-end mt-6">
-                  <button className="bg-purple-600 hover:bg-purple-700 text-white font-medium px-6 py-3 rounded-lg transition-colors flex items-center gap-2">
+                  <button
+                    onClick={() => router.push("/verification-dashboard")}
+                    className="bg-purple-600 hover:bg-purple-700 text-white font-medium px-6 py-3 rounded-lg transition-colors flex items-center gap-2"
+                  >
                     Run Verification ({selectedQueries.length} queries)
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
