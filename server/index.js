@@ -2,9 +2,16 @@ const express = require('express');
 const cors = require('cors');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
+require('dotenv').config();
 
 const app = express();
 const PORT = 3002;
+
+// LinkedIn OAuth Configuration
+const LINKEDIN_CLIENT_ID = process.env.LINKEDIN_CLIENT_ID;
+const LINKEDIN_CLIENT_SECRET = process.env.LINKEDIN_CLIENT_SECRET;
+const LINKEDIN_REDIRECT_URI = process.env.LINKEDIN_REDIRECT_URI || 'http://localhost:3000/verify/callback';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
 app.use(cors());
 app.use(express.json());
@@ -12,6 +19,129 @@ app.use(express.json());
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// LinkedIn OAuth - Get Authorization URL
+app.get('/api/linkedin/auth-url', (req, res) => {
+  const { hashId } = req.query;
+
+  if (!LINKEDIN_CLIENT_ID) {
+    return res.status(500).json({
+      success: false,
+      error: 'LinkedIn Client ID not configured'
+    });
+  }
+
+  // State parameter to prevent CSRF and pass hashId
+  const state = Buffer.from(JSON.stringify({ hashId, nonce: crypto.randomBytes(16).toString('hex') })).toString('base64');
+
+  const params = new URLSearchParams({
+    response_type: 'code',
+    client_id: LINKEDIN_CLIENT_ID,
+    redirect_uri: LINKEDIN_REDIRECT_URI,
+    state: state,
+    scope: 'openid profile email'
+  });
+
+  const authUrl = `https://www.linkedin.com/oauth/v2/authorization?${params.toString()}`;
+
+  res.json({
+    success: true,
+    authUrl
+  });
+});
+
+// LinkedIn OAuth - Exchange Code for Token
+app.post('/api/linkedin/callback', async (req, res) => {
+  const { code, state } = req.body;
+
+  if (!code) {
+    return res.status(400).json({
+      success: false,
+      error: 'Authorization code is required'
+    });
+  }
+
+  try {
+    // Decode state to get hashId
+    let hashId = null;
+    if (state) {
+      try {
+        const decoded = JSON.parse(Buffer.from(state, 'base64').toString());
+        hashId = decoded.hashId;
+      } catch (e) {
+        console.error('Failed to decode state:', e);
+      }
+    }
+
+    // Exchange code for access token
+    const tokenResponse = await fetch('https://www.linkedin.com/oauth/v2/accessToken', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        code: code,
+        client_id: LINKEDIN_CLIENT_ID,
+        client_secret: LINKEDIN_CLIENT_SECRET,
+        redirect_uri: LINKEDIN_REDIRECT_URI,
+      }),
+    });
+
+    const tokenData = await tokenResponse.json();
+
+    if (!tokenResponse.ok) {
+      console.error('LinkedIn token error:', tokenData);
+      return res.status(400).json({
+        success: false,
+        error: tokenData.error_description || 'Failed to exchange code for token'
+      });
+    }
+
+    const accessToken = tokenData.access_token;
+
+    // Fetch user profile using the access token
+    const profileResponse = await fetch('https://api.linkedin.com/v2/userinfo', {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    });
+
+    const profileData = await profileResponse.json();
+
+    if (!profileResponse.ok) {
+      console.error('LinkedIn profile error:', profileData);
+      return res.status(400).json({
+        success: false,
+        error: 'Failed to fetch LinkedIn profile'
+      });
+    }
+
+    // Return the profile data
+    res.json({
+      success: true,
+      data: {
+        hashId,
+        linkedin: {
+          sub: profileData.sub,
+          name: profileData.name,
+          email: profileData.email,
+          picture: profileData.picture,
+          email_verified: profileData.email_verified
+        },
+        verified: true,
+        verifiedAt: new Date().toISOString()
+      }
+    });
+
+  } catch (error) {
+    console.error('LinkedIn OAuth error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to complete LinkedIn authentication'
+    });
+  }
 });
 
 // Send verification emails via SMTP
@@ -205,16 +335,14 @@ app.listen(PORT, () => {
   console.log(`\n🚀 ProofPanel Backend Server running at http://localhost:${PORT}`);
   console.log(`\n📚 Available Endpoints:`);
   console.log(`   GET  /api/health                      - Health check`);
+  console.log(`   GET  /api/linkedin/auth-url           - Get LinkedIn OAuth URL`);
+  console.log(`   POST /api/linkedin/callback           - Exchange LinkedIn code for token`);
   console.log(`   POST /api/send-verification-emails    - Send verification emails via SMTP`);
+  console.log(`\n🔗 LinkedIn OAuth Configuration:`);
+  console.log(`   Client ID: ${LINKEDIN_CLIENT_ID ? '✓ Configured' : '✗ Not configured'}`);
+  console.log(`   Client Secret: ${LINKEDIN_CLIENT_SECRET ? '✓ Configured' : '✗ Not configured'}`);
+  console.log(`   Redirect URI: ${LINKEDIN_REDIRECT_URI}`);
   console.log(`\n📧 Email Behavior:`);
   console.log(`   - Real emails are ONLY sent to test accounts (hashId starts with "TEST-")`);
   console.log(`   - Other panelists are marked as "Sent" without actual email delivery`);
-  console.log(`\n📧 Email API Request Body:`);
-  console.log(`   {`);
-  console.log(`     "smtpEmail": "your-email@gmail.com",`);
-  console.log(`     "smtpPassword": "your-app-password",`);
-  console.log(`     "recipients": [`);
-  console.log(`       { "hashId": "TEST-abc123", "email": "test@example.com" }`);
-  console.log(`     ]`);
-  console.log(`   }`);
 });

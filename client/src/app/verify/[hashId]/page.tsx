@@ -1,23 +1,82 @@
 "use client";
 
-import { useState } from "react";
-import { useParams } from "next/navigation";
-import { Check, Shield, Copy, ArrowRight } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useParams, useSearchParams } from "next/navigation";
+import { Check, Shield, Copy, ArrowRight, ArrowLeft, Linkedin, Loader2 } from "lucide-react";
 
-type VerificationStep = "email-verified" | "verify-attributes" | "completed";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002";
+
+type VerificationStep = "email-verified" | "verify-attributes" | "choose-method" | "completed";
 
 export default function VerifyPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const hashId = params.hashId as string;
 
   const [currentStep, setCurrentStep] = useState<VerificationStep>("email-verified");
   const [copied, setCopied] = useState(false);
+  const [selectedMethod, setSelectedMethod] = useState<string>("linkedin");
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [verifiedName, setVerifiedName] = useState<string>("");
+
+  // Check if returning from LinkedIn OAuth
+  useEffect(() => {
+    const verified = searchParams.get("verified");
+    const name = searchParams.get("name");
+
+    if (verified === "true") {
+      setCurrentStep("completed");
+      if (name) {
+        setVerifiedName(name);
+      }
+    }
+  }, [searchParams]);
+
+  const handleLinkedInAuth = async () => {
+    setIsRedirecting(true);
+
+    try {
+      const response = await fetch(`${API_URL}/api/linkedin/auth-url?hashId=${hashId}`);
+      const data = await response.json();
+
+      if (data.success && data.authUrl) {
+        // Redirect to LinkedIn
+        window.location.href = data.authUrl;
+      } else {
+        console.error("Failed to get LinkedIn auth URL:", data.error);
+        setIsRedirecting(false);
+        alert(data.error || "Failed to initiate LinkedIn authentication. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error initiating LinkedIn auth:", error);
+      setIsRedirecting(false);
+      alert("Failed to connect to server. Please try again.");
+    }
+  };
 
   const handleCopyId = () => {
     navigator.clipboard.writeText(hashId);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  // Progress step indicator
+  const getStepProgress = () => {
+    switch (currentStep) {
+      case "email-verified":
+        return 1;
+      case "verify-attributes":
+        return 2;
+      case "choose-method":
+        return 3;
+      case "completed":
+        return 4;
+      default:
+        return 1;
+    }
+  };
+
+  const stepProgress = getStepProgress();
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
@@ -130,7 +189,7 @@ export default function VerifyPage() {
 
             {/* Consent Button */}
             <button
-              onClick={() => setCurrentStep("completed")}
+              onClick={() => setCurrentStep("choose-method")}
               className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors flex items-center justify-center gap-2"
             >
               <ArrowRight className="w-5 h-5" />
@@ -139,9 +198,105 @@ export default function VerifyPage() {
           </div>
         )}
 
-        {/* Step 3: Verification Completed */}
+        {/* Step 3: Choose Verification Method */}
+        {currentStep === "choose-method" && (
+          <div className="bg-white rounded-2xl shadow-xl p-8">
+            {/* Progress Steps */}
+            <div className="flex gap-2 mb-8">
+              <div className="flex-1 h-1.5 bg-purple-600 rounded-full"></div>
+              <div className="flex-1 h-1.5 bg-purple-600 rounded-full"></div>
+              <div className={`flex-1 h-1.5 rounded-full ${stepProgress >= 3 ? "bg-purple-600" : "bg-gray-200"}`}></div>
+              <div className={`flex-1 h-1.5 rounded-full ${stepProgress >= 4 ? "bg-purple-600" : "bg-gray-200"}`}></div>
+            </div>
+
+            {/* Title */}
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+              Choose Verification Method
+            </h1>
+            <p className="text-gray-500 mb-8">
+              Select how you&apos;d like to verify your attributes
+            </p>
+
+            {/* LinkedIn Option */}
+            <div
+              onClick={() => setSelectedMethod("linkedin")}
+              className={`p-4 rounded-xl border-2 cursor-pointer transition-all mb-4 ${
+                selectedMethod === "linkedin"
+                  ? "border-purple-500 bg-purple-50"
+                  : "border-gray-200 hover:border-gray-300"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-[#0A66C2] rounded-lg flex items-center justify-center">
+                    <Linkedin className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-gray-900">LinkedIn</span>
+                      <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-medium rounded-full">
+                        Recommended
+                      </span>
+                    </div>
+                    <p className="text-gray-500 text-sm">Verify using your LinkedIn profile</p>
+                  </div>
+                </div>
+                <div
+                  className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                    selectedMethod === "linkedin"
+                      ? "border-purple-500"
+                      : "border-gray-300"
+                  }`}
+                >
+                  {selectedMethod === "linkedin" && (
+                    <div className="w-2.5 h-2.5 bg-purple-500 rounded-full"></div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-4 mt-8">
+              <button
+                onClick={() => setCurrentStep("verify-attributes")}
+                disabled={isRedirecting}
+                className="flex items-center gap-2 px-4 py-3 text-gray-600 hover:text-gray-900 font-medium transition-colors disabled:opacity-50"
+              >
+                <ArrowLeft className="w-5 h-5" />
+                Back
+              </button>
+              <button
+                onClick={handleLinkedInAuth}
+                disabled={isRedirecting}
+                className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isRedirecting ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Connecting to LinkedIn...
+                  </>
+                ) : (
+                  <>
+                    <Linkedin className="w-5 h-5" />
+                    Continue with LinkedIn
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 4: Verification Completed */}
         {currentStep === "completed" && (
           <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
+            {/* Progress Steps */}
+            <div className="flex gap-2 mb-8">
+              <div className="flex-1 h-1.5 bg-purple-600 rounded-full"></div>
+              <div className="flex-1 h-1.5 bg-purple-600 rounded-full"></div>
+              <div className="flex-1 h-1.5 bg-purple-600 rounded-full"></div>
+              <div className="flex-1 h-1.5 bg-purple-600 rounded-full"></div>
+            </div>
+
             {/* Success Icon */}
             <div className="flex justify-center mb-6">
               <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center">
@@ -154,7 +309,9 @@ export default function VerifyPage() {
               Verification Complete!
             </h1>
             <p className="text-gray-500 mb-8">
-              Your attributes have been verified using Zero-Knowledge Proofs
+              {verifiedName
+                ? `Welcome, ${verifiedName}! Your profile has been verified.`
+                : "Your attributes have been verified using Zero-Knowledge Proofs"}
             </p>
 
             {/* Respondent ID */}
