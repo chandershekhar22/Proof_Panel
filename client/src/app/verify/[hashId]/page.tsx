@@ -93,10 +93,10 @@ export default function VerifyPage() {
 
             {/* Title */}
             <h1 className="text-2xl font-bold text-gray-900 text-center mb-2">
-              Email Verified!
+              Credentials Verified!
             </h1>
             <p className="text-gray-500 text-center mb-8">
-              Your email has been successfully verified
+              Your Credentials has been successfully verified
             </p>
 
             {/* Respondent ID Box */}
