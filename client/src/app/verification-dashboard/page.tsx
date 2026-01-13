@@ -116,6 +116,17 @@ export default function VerificationDashboard() {
           }));
           // Clear saved items since config changed
           localStorage.removeItem("verification-items");
+
+          // Clear backend verification statuses when config changes
+          try {
+            await fetch("http://localhost:3002/api/clear-verification-statuses", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ hashIds: currentHashIds })
+            });
+          } catch (error) {
+            console.error("Error clearing verification statuses:", error);
+          }
         }
 
         setVerificationItems(items);

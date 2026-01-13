@@ -70,6 +70,26 @@ app.post('/api/verification-statuses', (req, res) => {
   res.json({ success: true, data: statuses });
 });
 
+// Clear verification statuses (used when config changes)
+app.post('/api/clear-verification-statuses', (req, res) => {
+  const { hashIds } = req.body;
+
+  if (hashIds && Array.isArray(hashIds)) {
+    // Clear specific hashIds
+    for (const hashId of hashIds) {
+      verifiedPanelistsStore.delete(hashId);
+      respondentAttributesStore.delete(hashId);
+    }
+  } else {
+    // Clear all
+    verifiedPanelistsStore.clear();
+    respondentAttributesStore.clear();
+  }
+
+  console.log('Verification statuses cleared');
+  res.json({ success: true, message: 'Verification statuses cleared' });
+});
+
 // LinkedIn OAuth - Get Authorization URL
 app.get('/api/linkedin/auth-url', (req, res) => {
   const { hashId } = req.query;
