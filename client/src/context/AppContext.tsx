@@ -20,6 +20,12 @@ export interface Respondent {
   verified: boolean;
 }
 
+// Verification config for tracking changes
+export interface VerificationConfig {
+  hashIds: string[];
+  selectedQueries: string[];
+}
+
 // App State type
 interface AppState {
   // Connection
@@ -41,6 +47,9 @@ interface AppState {
   // Manage Proof
   selectedSource: string | null;
   selectedQueries: string[];
+
+  // Verification tracking
+  lastVerificationConfig: VerificationConfig | null;
 }
 
 // Context type with setters
@@ -55,6 +64,7 @@ interface AppContextType extends AppState {
   setTotalRecords: (total: number) => void;
   setSelectedSource: (source: string | null) => void;
   setSelectedQueries: (queries: string[]) => void;
+  setLastVerificationConfig: (config: VerificationConfig | null) => void;
   resetFilters: () => void;
   resetAll: () => void;
 }
@@ -78,6 +88,7 @@ const defaultState: AppState = {
   totalRecords: 0,
   selectedSource: null,
   selectedQueries: [],
+  lastVerificationConfig: null,
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -117,6 +128,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const setTotalRecords = (total: number) => setState(prev => ({ ...prev, totalRecords: total }));
   const setSelectedSource = (source: string | null) => setState(prev => ({ ...prev, selectedSource: source }));
   const setSelectedQueries = (queries: string[]) => setState(prev => ({ ...prev, selectedQueries: queries }));
+  const setLastVerificationConfig = (config: VerificationConfig | null) => setState(prev => ({ ...prev, lastVerificationConfig: config }));
 
   const resetFilters = () => setState(prev => ({ ...prev, selectedFilters: defaultFilters }));
 
@@ -144,6 +156,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setTotalRecords,
         setSelectedSource,
         setSelectedQueries,
+        setLastVerificationConfig,
         resetFilters,
         resetAll,
       }}

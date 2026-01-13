@@ -28,6 +28,9 @@ export default function VerificationDashboard() {
   const {
     isConnected,
     loadedData,
+    selectedQueries,
+    lastVerificationConfig,
+    setLastVerificationConfig,
   } = useAppContext();
 
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
@@ -44,19 +47,84 @@ export default function VerificationDashboard() {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedPanelist, setSelectedPanelist] = useState<string | null>(null);
 
+  // Check if verification config has changed
+  const hasConfigChanged = (currentHashIds: string[], currentQueries: string[]): boolean => {
+    if (!lastVerificationConfig) return true;
+
+    const hashIdsChanged =
+      currentHashIds.length !== lastVerificationConfig.hashIds.length ||
+      currentHashIds.some(id => !lastVerificationConfig.hashIds.includes(id));
+
+    const queriesChanged =
+      currentQueries.length !== lastVerificationConfig.selectedQueries.length ||
+      currentQueries.some(q => !lastVerificationConfig.selectedQueries.includes(q));
+
+    return hashIdsChanged || queriesChanged;
+  };
+
   // Generate verification items from loaded data and fetch statuses
   useEffect(() => {
     const initializeAndFetchStatuses = async () => {
       if (loadedData && loadedData.length > 0) {
-        const items = loadedData.map((respondent, index) => ({
-          id: `verification-${index}`,
-          panelistId: respondent.hashId,
-          email: respondent.email,
-          emailStatus: "Pending" as const,
-          proofStatus: "Pending" as const,
-          zkpResult: "Pending" as const,
-        }));
+        const currentHashIds = loadedData.map(r => r.hashId);
+        const configChanged = hasConfigChanged(currentHashIds, selectedQueries);
+
+        // Try to load saved items from localStorage
+        const savedItems = localStorage.getItem("verification-items");
+        let items: VerificationItem[];
+
+        if (!configChanged && savedItems) {
+          // Config hasn't changed, use saved items
+          try {
+            items = JSON.parse(savedItems);
+            // Ensure items match current data (filter out any that no longer exist)
+            items = items.filter(item => currentHashIds.includes(item.panelistId));
+            // Add any new items that weren't in saved data
+            const existingIds = items.map(item => item.panelistId);
+            loadedData.forEach((respondent, index) => {
+              if (!existingIds.includes(respondent.hashId)) {
+                items.push({
+                  id: `verification-${index}`,
+                  panelistId: respondent.hashId,
+                  email: respondent.email,
+                  emailStatus: "Pending" as const,
+                  proofStatus: "Pending" as const,
+                  zkpResult: "Pending" as const,
+                });
+              }
+            });
+          } catch {
+            // If parsing fails, create new items
+            items = loadedData.map((respondent, index) => ({
+              id: `verification-${index}`,
+              panelistId: respondent.hashId,
+              email: respondent.email,
+              emailStatus: "Pending" as const,
+              proofStatus: "Pending" as const,
+              zkpResult: "Pending" as const,
+            }));
+          }
+        } else {
+          // Config changed, create fresh items
+          items = loadedData.map((respondent, index) => ({
+            id: `verification-${index}`,
+            panelistId: respondent.hashId,
+            email: respondent.email,
+            emailStatus: "Pending" as const,
+            proofStatus: "Pending" as const,
+            zkpResult: "Pending" as const,
+          }));
+          // Clear saved items since config changed
+          localStorage.removeItem("verification-items");
+        }
+
         setVerificationItems(items);
+
+        // Update the last verification config
+        setLastVerificationConfig({
+          hashIds: currentHashIds,
+          selectedQueries: [...selectedQueries],
+        });
 
         // Fetch verification statuses for these items
         try {
@@ -70,7 +138,7 @@ export default function VerificationDashboard() {
 
           if (result.success) {
             setVerificationItems(prevItems => {
-              return prevItems.map(item => {
+              const updatedItems = prevItems.map(item => {
                 const status = result.data[item.panelistId];
                 if (status && status.verified) {
                   return {
@@ -81,6 +149,9 @@ export default function VerificationDashboard() {
                 }
                 return item;
               });
+              // Save to localStorage
+              localStorage.setItem("verification-items", JSON.stringify(updatedItems));
+              return updatedItems;
             });
           }
         } catch (error) {
@@ -90,7 +161,7 @@ export default function VerificationDashboard() {
     };
 
     initializeAndFetchStatuses();
-  }, [loadedData]);
+  }, [loadedData, selectedQueries]);
 
   const pendingEmailCount = verificationItems.filter(item => item.emailStatus === "Pending").length;
   const sentEmailCount = verificationItems.filter(item => item.emailStatus === "Sent").length;
@@ -128,7 +199,7 @@ export default function VerificationDashboard() {
 
       if (result.success) {
         setVerificationItems(prevItems => {
-          return prevItems.map(item => {
+          const updatedItems = prevItems.map(item => {
             const status = result.data[item.panelistId];
             if (status && status.verified) {
               return {
@@ -139,6 +210,9 @@ export default function VerificationDashboard() {
             }
             return item;
           });
+          // Save to localStorage
+          localStorage.setItem("verification-items", JSON.stringify(updatedItems));
+          return updatedItems;
         });
       }
     } catch (error) {
@@ -209,7 +283,7 @@ export default function VerificationDashboard() {
 
       // Update email statuses based on results
       setVerificationItems(prevItems => {
-        return prevItems.map(item => {
+        const updatedItems = prevItems.map(item => {
           // Check if this item was successfully sent
           const wasSent = result.data.sent.some(
             (sent: { hashId: string }) => sent.hashId === item.panelistId
@@ -225,6 +299,9 @@ export default function VerificationDashboard() {
           }
           return item;
         });
+        // Save updated items to localStorage
+        localStorage.setItem("verification-items", JSON.stringify(updatedItems));
+        return updatedItems;
       });
 
       // Close email modal and show success modal
@@ -724,8 +801,6 @@ export default function VerificationDashboard() {
                       { label: "Company Size", value: respondent.companySize },
                       { label: "Job Function", value: respondent.jobFunction },
                       { label: "Employment Status", value: respondent.employmentStatus },
-                      { label: "Company", value: respondent.company },
-                      { label: "Location", value: respondent.location },
                     ].filter(attr => attr.value);
 
                     return attributes.map((attr, index) => (
@@ -753,7 +828,7 @@ export default function VerificationDashboard() {
               {/* Verification Method Used */}
               <div className="mb-6 bg-blue-50 border border-blue-200 rounded-xl p-4">
                 <p className="text-xs font-semibold text-blue-700 uppercase tracking-wider mb-1">Verification Method Used</p>
-                <p className="text-blue-800 font-medium">LinkedIn + Document</p>
+                <p className="text-blue-800 font-medium">LinkedIn</p>
               </div>
 
               {/* Overall ZKP Result */}
