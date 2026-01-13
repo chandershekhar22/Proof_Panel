@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { RefreshCw, ArrowLeft, Eye, Check, Loader2 } from "lucide-react";
+import { RefreshCw, ArrowLeft, Eye, Check, Loader2, X, Shield } from "lucide-react";
 import { useAppContext } from "@/context/AppContext";
 
 // Verification item type
@@ -41,6 +41,8 @@ export default function VerificationDashboard() {
   const [verificationItems, setVerificationItems] = useState<VerificationItem[]>([]);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [sentEmails, setSentEmails] = useState<SentEmailResult[]>([]);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedPanelist, setSelectedPanelist] = useState<string | null>(null);
 
   // Generate verification items from loaded data and fetch statuses
   useEffect(() => {
@@ -239,6 +241,23 @@ export default function VerificationDashboard() {
     }
   };
 
+  const handleViewDetails = (panelistId: string) => {
+    setSelectedPanelist(panelistId);
+    setShowDetailsModal(true);
+  };
+
+  // Get the respondent data for the selected panelist
+  const getSelectedRespondent = () => {
+    if (!selectedPanelist || !loadedData) return null;
+    return loadedData.find(r => r.hashId === selectedPanelist);
+  };
+
+  // Get the verification item for the selected panelist
+  const getSelectedVerificationItem = () => {
+    if (!selectedPanelist) return null;
+    return verificationItems.find(item => item.panelistId === selectedPanelist);
+  };
+
   const getStatusBadge = (status: string) => {
     const baseClasses = "px-3 py-1 rounded text-xs font-medium";
 
@@ -417,7 +436,10 @@ export default function VerificationDashboard() {
                       {getStatusBadge(item.proofStatus)}
                     </td>
                     <td className="p-4 text-center">
-                      <button className="px-3 py-1.5 border border-purple-500 text-purple-400 hover:bg-purple-500/10 rounded text-xs font-medium transition-colors">
+                      <button
+                        onClick={() => handleViewDetails(item.panelistId)}
+                        className="px-3 py-1.5 border border-purple-500 text-purple-400 hover:bg-purple-500/10 rounded text-xs font-medium transition-colors"
+                      >
                         View Details
                       </button>
                     </td>
@@ -627,6 +649,140 @@ export default function VerificationDashboard() {
               <button
                 onClick={() => setShowSuccessModal(false)}
                 className="w-full px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Details Modal */}
+      {showDetailsModal && selectedPanelist && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Sub-query results for respondent verification</h2>
+              </div>
+              <button
+                onClick={() => {
+                  setShowDetailsModal(false);
+                  setSelectedPanelist(null);
+                }}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6">
+              {/* Panelist ID */}
+              <div className="mb-6">
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Panelist ID</p>
+                <p className="font-mono text-gray-900 bg-gray-50 px-3 py-2 rounded-lg">{selectedPanelist}</p>
+              </div>
+
+              {/* ZKP Query */}
+              <div className="mb-6 bg-cyan-50 border border-cyan-200 rounded-xl p-4">
+                <p className="text-xs font-semibold text-cyan-700 uppercase tracking-wider mb-2">ZKP Query</p>
+                <p className="font-mono text-sm text-cyan-800 leading-relaxed">
+                  {(() => {
+                    const respondent = getSelectedRespondent();
+                    if (!respondent) return "No data available";
+                    const conditions = [];
+                    if (respondent.jobTitle) conditions.push(`job_title = '${respondent.jobTitle}'`);
+                    if (respondent.industry) conditions.push(`industry = '${respondent.industry}'`);
+                    if (respondent.companySize) conditions.push(`company_size = '${respondent.companySize}'`);
+                    if (respondent.jobFunction) conditions.push(`job_function = '${respondent.jobFunction}'`);
+                    if (respondent.employmentStatus) conditions.push(`employment_status = '${respondent.employmentStatus}'`);
+                    return conditions.join(' AND ') || "No attributes to verify";
+                  })()}
+                </p>
+              </div>
+
+              {/* Attribute Verification Results */}
+              <div className="mb-6">
+                <p className="text-sm font-semibold text-gray-700 mb-3">Attribute Verification Results</p>
+                <div className="space-y-2">
+                  {(() => {
+                    const respondent = getSelectedRespondent();
+                    const verificationItem = getSelectedVerificationItem();
+                    const isVerified = verificationItem?.proofStatus === "Verified";
+
+                    if (!respondent) {
+                      return (
+                        <div className="text-gray-500 text-sm">No respondent data available</div>
+                      );
+                    }
+
+                    const attributes = [
+                      { label: "Job Title", value: respondent.jobTitle },
+                      { label: "Industry", value: respondent.industry },
+                      { label: "Company Size", value: respondent.companySize },
+                      { label: "Job Function", value: respondent.jobFunction },
+                      { label: "Employment Status", value: respondent.employmentStatus },
+                      { label: "Company", value: respondent.company },
+                      { label: "Location", value: respondent.location },
+                    ].filter(attr => attr.value);
+
+                    return attributes.map((attr, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-3 border border-gray-100"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-2 h-2 rounded-full ${isVerified ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+                          <span className="text-gray-700 font-medium">{attr.label}</span>
+                        </div>
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                          isVerified
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-yellow-100 text-yellow-700'
+                        }`}>
+                          {isVerified ? 'Yes' : 'Pending'}
+                        </span>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              </div>
+
+              {/* Verification Method Used */}
+              <div className="mb-6 bg-blue-50 border border-blue-200 rounded-xl p-4">
+                <p className="text-xs font-semibold text-blue-700 uppercase tracking-wider mb-1">Verification Method Used</p>
+                <p className="text-blue-800 font-medium">LinkedIn + Document</p>
+              </div>
+
+              {/* Overall ZKP Result */}
+              <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-4 border border-gray-200">
+                <span className="text-gray-700 font-semibold">Overall ZKP Result</span>
+                {(() => {
+                  const verificationItem = getSelectedVerificationItem();
+                  const isVerified = verificationItem?.proofStatus === "Verified";
+                  return (
+                    <span className={`px-4 py-2 rounded-full text-sm font-bold ${
+                      isVerified
+                        ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white'
+                        : 'bg-yellow-500 text-black'
+                    }`}>
+                      {isVerified ? 'Verified' : 'Pending'}
+                    </span>
+                  );
+                })()}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-6 pt-0">
+              <button
+                onClick={() => {
+                  setShowDetailsModal(false);
+                  setSelectedPanelist(null);
+                }}
+                className="w-full px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-xl transition-colors"
               >
                 Close
               </button>

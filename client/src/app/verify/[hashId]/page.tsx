@@ -428,16 +428,16 @@ export default function VerifyPage() {
           <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
             {/* Progress Steps */}
             <div className="flex gap-2 mb-8">
-              <div className="flex-1 h-1.5 bg-purple-600 rounded-full"></div>
-              <div className="flex-1 h-1.5 bg-purple-600 rounded-full"></div>
-              <div className="flex-1 h-1.5 bg-purple-600 rounded-full"></div>
-              <div className="flex-1 h-1.5 bg-purple-600 rounded-full"></div>
+              <div className="flex-1 h-1.5 bg-green-500 rounded-full"></div>
+              <div className="flex-1 h-1.5 bg-green-500 rounded-full"></div>
+              <div className="flex-1 h-1.5 bg-green-500 rounded-full"></div>
+              <div className="flex-1 h-1.5 bg-green-500 rounded-full"></div>
             </div>
 
             {/* Success Icon */}
             <div className="flex justify-center mb-6">
-              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center">
-                <Check className="w-10 h-10 text-green-500" />
+              <div className="w-20 h-20 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center shadow-lg shadow-green-200">
+                <Check className="w-10 h-10 text-white" strokeWidth={3} />
               </div>
             </div>
 
@@ -453,36 +453,39 @@ export default function VerifyPage() {
 
             {/* Verified Attributes Section */}
             {(verifiedAttributes.jobTitle || verifiedAttributes.industry || verifiedAttributes.companySize) && (
-              <div className="bg-gray-50 rounded-xl p-6 mb-6 text-left">
-                <h3 className="font-semibold text-gray-900 mb-4">Verified Attributes:</h3>
+              <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 mb-6 text-left border border-green-200">
+                <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-green-600" />
+                  Verified Attributes
+                </h3>
                 <div className="space-y-3">
                   {verifiedAttributes.jobTitle && (
-                    <div className="flex items-center gap-3">
-                      <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
-                        <Check className="w-3 h-3 text-green-500" />
+                    <div className="flex items-center gap-3 bg-white/60 rounded-lg p-3">
+                      <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+                        <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />
                       </div>
                       <span className="text-gray-700">
-                        <span className="font-medium">Job Title:</span> {verifiedAttributes.jobTitle}
+                        <span className="font-medium text-gray-900">Job Title:</span> {verifiedAttributes.jobTitle}
                       </span>
                     </div>
                   )}
                   {verifiedAttributes.industry && (
-                    <div className="flex items-center gap-3">
-                      <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
-                        <Check className="w-3 h-3 text-green-500" />
+                    <div className="flex items-center gap-3 bg-white/60 rounded-lg p-3">
+                      <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+                        <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />
                       </div>
                       <span className="text-gray-700">
-                        <span className="font-medium">Industry:</span> {verifiedAttributes.industry}
+                        <span className="font-medium text-gray-900">Industry:</span> {verifiedAttributes.industry}
                       </span>
                     </div>
                   )}
                   {verifiedAttributes.companySize && (
-                    <div className="flex items-center gap-3">
-                      <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
-                        <Check className="w-3 h-3 text-green-500" />
+                    <div className="flex items-center gap-3 bg-white/60 rounded-lg p-3">
+                      <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+                        <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />
                       </div>
                       <span className="text-gray-700">
-                        <span className="font-medium">Company Size:</span> {verifiedAttributes.companySize}
+                        <span className="font-medium text-gray-900">Company Size:</span> {verifiedAttributes.companySize}
                       </span>
                     </div>
                   )}
@@ -491,19 +494,19 @@ export default function VerifyPage() {
             )}
 
             {/* Proof ID */}
-            <p className="text-gray-400 text-xs mb-4">
+            <p className="text-gray-400 text-xs mb-4 font-mono">
               Proof ID: ZKP-{hashId.substring(0, 8).toUpperCase()}
             </p>
 
             {/* Status Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-full font-medium mb-6">
-              <Check className="w-4 h-4" />
+            <div className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-full font-semibold mb-6 shadow-lg shadow-green-200">
+              <Check className="w-5 h-5" strokeWidth={3} />
               Verified
             </div>
 
             {/* Info */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-blue-800 text-sm">
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4">
+              <p className="text-blue-700 text-sm">
                 You can now close this window. The verification status has been updated in our system.
               </p>
             </div>
