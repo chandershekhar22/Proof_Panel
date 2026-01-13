@@ -42,19 +42,52 @@ export default function VerificationDashboard() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [sentEmails, setSentEmails] = useState<SentEmailResult[]>([]);
 
-  // Generate verification items from loaded data on mount
+  // Generate verification items from loaded data and fetch statuses
   useEffect(() => {
-    if (loadedData && loadedData.length > 0) {
-      const items = loadedData.map((respondent, index) => ({
-        id: `verification-${index}`,
-        panelistId: respondent.hashId,
-        email: respondent.email,
-        emailStatus: "Pending" as const,
-        proofStatus: "Pending" as const,
-        zkpResult: "Pending" as const,
-      }));
-      setVerificationItems(items);
-    }
+    const initializeAndFetchStatuses = async () => {
+      if (loadedData && loadedData.length > 0) {
+        const items = loadedData.map((respondent, index) => ({
+          id: `verification-${index}`,
+          panelistId: respondent.hashId,
+          email: respondent.email,
+          emailStatus: "Pending" as const,
+          proofStatus: "Pending" as const,
+          zkpResult: "Pending" as const,
+        }));
+        setVerificationItems(items);
+
+        // Fetch verification statuses for these items
+        try {
+          const hashIds = loadedData.map(r => r.hashId);
+          const response = await fetch("http://localhost:3002/api/verification-statuses", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ hashIds })
+          });
+          const result = await response.json();
+
+          if (result.success) {
+            setVerificationItems(prevItems => {
+              return prevItems.map(item => {
+                const status = result.data[item.panelistId];
+                if (status && status.verified) {
+                  return {
+                    ...item,
+                    proofStatus: "Verified" as const,
+                    zkpResult: "Pass" as const,
+                  };
+                }
+                return item;
+              });
+            });
+          }
+        } catch (error) {
+          console.error("Error fetching verification statuses:", error);
+        }
+      }
+    };
+
+    initializeAndFetchStatuses();
   }, [loadedData]);
 
   const pendingEmailCount = verificationItems.filter(item => item.emailStatus === "Pending").length;
@@ -76,9 +109,45 @@ export default function VerificationDashboard() {
     }
   };
 
-  const handleRefresh = () => {
+  const fetchVerificationStatuses = async () => {
+    if (verificationItems.length === 0) return;
+
+    try {
+      const hashIds = verificationItems.map(item => item.panelistId);
+      const response = await fetch("http://localhost:3002/api/verification-statuses", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ hashIds })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setVerificationItems(prevItems => {
+          return prevItems.map(item => {
+            const status = result.data[item.panelistId];
+            if (status && status.verified) {
+              return {
+                ...item,
+                proofStatus: "Verified" as const,
+                zkpResult: "Pass" as const,
+              };
+            }
+            return item;
+          });
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching verification statuses:", error);
+    }
+  };
+
+  const handleRefresh = async () => {
     setIsRefreshing(true);
-    setTimeout(() => setIsRefreshing(false), 1000);
+    await fetchVerificationStatuses();
+    setIsRefreshing(false);
   };
 
   const handleSendVerification = async () => {
@@ -94,12 +163,25 @@ export default function VerificationDashboard() {
     setSendError(null);
 
     try {
-      // Prepare recipients list (only pending ones)
+      // Prepare recipients list (only pending ones) with full respondent data
       const pendingItems = verificationItems.filter(item => item.emailStatus === "Pending");
-      const recipients = pendingItems.map(item => ({
-        hashId: item.panelistId,
-        email: item.email
-      }));
+      const recipients = pendingItems.map(item => {
+        // Find the full respondent data
+        const respondent = loadedData?.find(r => r.hashId === item.panelistId);
+        return {
+          hashId: item.panelistId,
+          email: item.email,
+          firstName: respondent?.firstName,
+          lastName: respondent?.lastName,
+          company: respondent?.company,
+          location: respondent?.location,
+          employmentStatus: respondent?.employmentStatus,
+          jobTitle: respondent?.jobTitle,
+          jobFunction: respondent?.jobFunction,
+          companySize: respondent?.companySize,
+          industry: respondent?.industry,
+        };
+      });
 
       // Call the backend API
       const response = await fetch("http://localhost:3002/api/send-verification-emails", {

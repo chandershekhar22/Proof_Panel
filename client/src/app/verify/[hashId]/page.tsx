@@ -6,7 +6,13 @@ import { Check, Shield, Copy, ArrowRight, ArrowLeft, Linkedin, Loader2 } from "l
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002";
 
-type VerificationStep = "email-verified" | "verify-attributes" | "choose-method" | "completed";
+type VerificationStep = "email-verified" | "verify-attributes" | "choose-method" | "verifying" | "completed";
+
+interface VerifiedAttributes {
+  jobTitle?: string;
+  industry?: string;
+  companySize?: string;
+}
 
 export default function VerifyPage() {
   const params = useParams();
@@ -18,17 +24,50 @@ export default function VerifyPage() {
   const [selectedMethod, setSelectedMethod] = useState<string>("linkedin");
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [verifiedName, setVerifiedName] = useState<string>("");
+  const [verifiedAttributes, setVerifiedAttributes] = useState<VerifiedAttributes>({});
+  const [verifyingProgress, setVerifyingProgress] = useState(0);
 
   // Check if returning from LinkedIn OAuth
   useEffect(() => {
     const verified = searchParams.get("verified");
     const name = searchParams.get("name");
+    const jobTitle = searchParams.get("jobTitle");
+    const industry = searchParams.get("industry");
+    const companySize = searchParams.get("companySize");
 
     if (verified === "true") {
-      setCurrentStep("completed");
+      // First show "verifying" step for 5 seconds
+      setCurrentStep("verifying");
       if (name) {
         setVerifiedName(name);
       }
+      // Set the verified attributes from URL params
+      setVerifiedAttributes({
+        jobTitle: jobTitle || undefined,
+        industry: industry || undefined,
+        companySize: companySize || undefined,
+      });
+
+      // Animate progress over 5 seconds
+      const progressInterval = setInterval(() => {
+        setVerifyingProgress(prev => {
+          if (prev >= 100) {
+            clearInterval(progressInterval);
+            return 100;
+          }
+          return prev + 2; // Increment every 100ms to reach 100 in 5s
+        });
+      }, 100);
+
+      // After 5 seconds, show completed
+      const timer = setTimeout(() => {
+        setCurrentStep("completed");
+      }, 5000);
+
+      return () => {
+        clearTimeout(timer);
+        clearInterval(progressInterval);
+      };
     }
   }, [searchParams]);
 
@@ -286,7 +325,105 @@ export default function VerifyPage() {
           </div>
         )}
 
-        {/* Step 4: Verification Completed */}
+        {/* Step 4: Verifying Attributes (5 second loading screen) */}
+        {currentStep === "verifying" && (
+          <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
+            {/* Progress Steps */}
+            <div className="flex gap-2 mb-8">
+              <div className="flex-1 h-1.5 bg-purple-600 rounded-full"></div>
+              <div className="flex-1 h-1.5 bg-purple-600 rounded-full"></div>
+              <div className="flex-1 h-1.5 bg-purple-600 rounded-full"></div>
+              <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-purple-600 transition-all duration-100 ease-linear"
+                  style={{ width: `${verifyingProgress}%` }}
+                ></div>
+              </div>
+            </div>
+
+            {/* Loading Icon */}
+            <div className="flex justify-center mb-6">
+              <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center">
+                <Loader2 className="w-10 h-10 text-purple-600 animate-spin" />
+              </div>
+            </div>
+
+            {/* Title */}
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+              Verifying Your Attributes
+            </h1>
+            <p className="text-gray-500 mb-8">
+              Please wait while we verify your professional attributes using Zero-Knowledge Proofs...
+            </p>
+
+            {/* Verification Steps Animation */}
+            <div className="bg-gray-50 rounded-xl p-6 mb-6">
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center ${verifyingProgress >= 20 ? 'bg-green-100' : 'bg-gray-200'}`}>
+                    {verifyingProgress >= 20 ? (
+                      <Check className="w-4 h-4 text-green-500" />
+                    ) : (
+                      <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
+                    )}
+                  </div>
+                  <span className={`text-sm ${verifyingProgress >= 20 ? 'text-green-700' : 'text-gray-500'}`}>
+                    Connecting to verification network...
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center ${verifyingProgress >= 45 ? 'bg-green-100' : 'bg-gray-200'}`}>
+                    {verifyingProgress >= 45 ? (
+                      <Check className="w-4 h-4 text-green-500" />
+                    ) : verifyingProgress >= 20 ? (
+                      <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
+                    ) : (
+                      <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
+                    )}
+                  </div>
+                  <span className={`text-sm ${verifyingProgress >= 45 ? 'text-green-700' : verifyingProgress >= 20 ? 'text-gray-700' : 'text-gray-400'}`}>
+                    Generating cryptographic proofs...
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center ${verifyingProgress >= 70 ? 'bg-green-100' : 'bg-gray-200'}`}>
+                    {verifyingProgress >= 70 ? (
+                      <Check className="w-4 h-4 text-green-500" />
+                    ) : verifyingProgress >= 45 ? (
+                      <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
+                    ) : (
+                      <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
+                    )}
+                  </div>
+                  <span className={`text-sm ${verifyingProgress >= 70 ? 'text-green-700' : verifyingProgress >= 45 ? 'text-gray-700' : 'text-gray-400'}`}>
+                    Validating professional attributes...
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center ${verifyingProgress >= 95 ? 'bg-green-100' : 'bg-gray-200'}`}>
+                    {verifyingProgress >= 95 ? (
+                      <Check className="w-4 h-4 text-green-500" />
+                    ) : verifyingProgress >= 70 ? (
+                      <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
+                    ) : (
+                      <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
+                    )}
+                  </div>
+                  <span className={`text-sm ${verifyingProgress >= 95 ? 'text-green-700' : verifyingProgress >= 70 ? 'text-gray-700' : 'text-gray-400'}`}>
+                    Finalizing verification...
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Progress indicator */}
+            <p className="text-gray-400 text-sm">
+              {verifyingProgress}% complete
+            </p>
+          </div>
+        )}
+
+        {/* Step 5: Verification Completed */}
         {currentStep === "completed" && (
           <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
             {/* Progress Steps */}
@@ -308,24 +445,58 @@ export default function VerifyPage() {
             <h1 className="text-2xl font-bold text-gray-900 mb-2">
               Verification Complete!
             </h1>
-            <p className="text-gray-500 mb-8">
+            <p className="text-gray-500 mb-6">
               {verifiedName
-                ? `Welcome, ${verifiedName}! Your profile has been verified.`
+                ? `Welcome, ${verifiedName}!`
                 : "Your attributes have been verified using Zero-Knowledge Proofs"}
             </p>
 
-            {/* Respondent ID */}
-            <div className="bg-gray-100 rounded-xl p-4 mb-6">
-              <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-1">
-                Respondent ID
-              </p>
-              <p className="text-gray-900 font-mono text-sm break-all">
-                {hashId}
-              </p>
-            </div>
+            {/* Verified Attributes Section */}
+            {(verifiedAttributes.jobTitle || verifiedAttributes.industry || verifiedAttributes.companySize) && (
+              <div className="bg-gray-50 rounded-xl p-6 mb-6 text-left">
+                <h3 className="font-semibold text-gray-900 mb-4">Verified Attributes:</h3>
+                <div className="space-y-3">
+                  {verifiedAttributes.jobTitle && (
+                    <div className="flex items-center gap-3">
+                      <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <Check className="w-3 h-3 text-green-500" />
+                      </div>
+                      <span className="text-gray-700">
+                        <span className="font-medium">Job Title:</span> {verifiedAttributes.jobTitle}
+                      </span>
+                    </div>
+                  )}
+                  {verifiedAttributes.industry && (
+                    <div className="flex items-center gap-3">
+                      <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <Check className="w-3 h-3 text-green-500" />
+                      </div>
+                      <span className="text-gray-700">
+                        <span className="font-medium">Industry:</span> {verifiedAttributes.industry}
+                      </span>
+                    </div>
+                  )}
+                  {verifiedAttributes.companySize && (
+                    <div className="flex items-center gap-3">
+                      <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <Check className="w-3 h-3 text-green-500" />
+                      </div>
+                      <span className="text-gray-700">
+                        <span className="font-medium">Company Size:</span> {verifiedAttributes.companySize}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Proof ID */}
+            <p className="text-gray-400 text-xs mb-4">
+              Proof ID: ZKP-{hashId.substring(0, 8).toUpperCase()}
+            </p>
 
             {/* Status Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-full font-medium mb-8">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-full font-medium mb-6">
               <Check className="w-4 h-4" />
               Verified
             </div>

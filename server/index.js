@@ -16,9 +16,58 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 app.use(cors());
 app.use(express.json());
 
+// In-memory store for respondent attributes (keyed by hashId)
+// In production, this should be a database
+const respondentAttributesStore = new Map();
+
+// In-memory store for verified panelists (keyed by hashId)
+// Stores verification status and timestamp
+const verifiedPanelistsStore = new Map();
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Get respondent attributes by hashId
+app.get('/api/respondent/:hashId', (req, res) => {
+  const { hashId } = req.params;
+  const attributes = respondentAttributesStore.get(hashId);
+
+  if (attributes) {
+    res.json({ success: true, data: attributes });
+  } else {
+    res.json({ success: false, error: 'Respondent not found' });
+  }
+});
+
+// Get verification status for a single panelist
+app.get('/api/verification-status/:hashId', (req, res) => {
+  const { hashId } = req.params;
+  const status = verifiedPanelistsStore.get(hashId);
+
+  if (status) {
+    res.json({ success: true, data: status });
+  } else {
+    res.json({ success: true, data: { verified: false, proofStatus: 'Pending' } });
+  }
+});
+
+// Get verification statuses for multiple panelists
+app.post('/api/verification-statuses', (req, res) => {
+  const { hashIds } = req.body;
+
+  if (!hashIds || !Array.isArray(hashIds)) {
+    return res.status(400).json({ success: false, error: 'hashIds array is required' });
+  }
+
+  const statuses = {};
+  for (const hashId of hashIds) {
+    const status = verifiedPanelistsStore.get(hashId);
+    statuses[hashId] = status || { verified: false, proofStatus: 'Pending' };
+  }
+
+  res.json({ success: true, data: statuses });
 });
 
 // LinkedIn OAuth - Get Authorization URL
@@ -100,25 +149,67 @@ app.post('/api/linkedin/callback', async (req, res) => {
     }
 
     const accessToken = tokenData.access_token;
+    const idToken = tokenData.id_token;
 
-    // Fetch user profile using the access token
-    const profileResponse = await fetch('https://api.linkedin.com/v2/userinfo', {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-      },
-    });
+    let profileData = null;
 
-    const profileData = await profileResponse.json();
-
-    if (!profileResponse.ok) {
-      console.error('LinkedIn profile error:', profileData);
-      return res.status(400).json({
-        success: false,
-        error: 'Failed to fetch LinkedIn profile'
-      });
+    // Try to decode id_token first (contains user info for OpenID Connect)
+    if (idToken) {
+      try {
+        // Decode JWT payload (id_token is a JWT)
+        const payload = idToken.split('.')[1];
+        const decoded = JSON.parse(Buffer.from(payload, 'base64').toString());
+        console.log('Decoded id_token:', decoded);
+        profileData = {
+          sub: decoded.sub,
+          name: decoded.name,
+          email: decoded.email,
+          picture: decoded.picture,
+          email_verified: decoded.email_verified,
+          given_name: decoded.given_name,
+          family_name: decoded.family_name,
+        };
+      } catch (decodeError) {
+        console.error('Failed to decode id_token:', decodeError);
+      }
     }
 
-    // Return the profile data
+    // Fallback to userinfo endpoint if id_token decode failed
+    if (!profileData) {
+      const profileResponse = await fetch('https://api.linkedin.com/v2/userinfo', {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+
+      profileData = await profileResponse.json();
+
+      if (!profileResponse.ok) {
+        console.error('LinkedIn profile error:', profileData);
+        console.error('Profile response status:', profileResponse.status);
+        return res.status(400).json({
+          success: false,
+          error: `Failed to fetch LinkedIn profile: ${profileData.message || profileData.error || JSON.stringify(profileData)}`
+        });
+      }
+    }
+
+    // Get stored respondent attributes
+    const respondentAttributes = respondentAttributesStore.get(hashId) || {};
+
+    // Mark panelist as verified
+    if (hashId) {
+      verifiedPanelistsStore.set(hashId, {
+        verified: true,
+        proofStatus: 'Verified',
+        verifiedAt: new Date().toISOString(),
+        linkedinName: profileData.name,
+        linkedinEmail: profileData.email,
+      });
+      console.log(`Panelist ${hashId} marked as verified`);
+    }
+
+    // Return the profile data with respondent attributes
     res.json({
       success: true,
       data: {
@@ -129,6 +220,11 @@ app.post('/api/linkedin/callback', async (req, res) => {
           email: profileData.email,
           picture: profileData.picture,
           email_verified: profileData.email_verified
+        },
+        attributes: {
+          jobTitle: respondentAttributes.jobTitle,
+          industry: respondentAttributes.industry,
+          companySize: respondentAttributes.companySize,
         },
         verified: true,
         verifiedAt: new Date().toISOString()
@@ -189,6 +285,20 @@ app.post('/api/send-verification-emails', async (req, res) => {
       // Use localhost for development, change to production URL in production
       const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
       const verificationLink = `${baseUrl}/verify/${recipient.hashId}?token=${verificationToken}`;
+
+      // Store respondent attributes for later retrieval during verification
+      respondentAttributesStore.set(recipient.hashId, {
+        firstName: recipient.firstName,
+        lastName: recipient.lastName,
+        email: recipient.email,
+        company: recipient.company,
+        location: recipient.location,
+        employmentStatus: recipient.employmentStatus,
+        jobTitle: recipient.jobTitle,
+        jobFunction: recipient.jobFunction,
+        companySize: recipient.companySize,
+        industry: recipient.industry,
+      });
 
       // Check if this is a test account (hashId starts with "TEST-")
       const isTestAccount = recipient.hashId.startsWith('TEST-');
@@ -335,6 +445,9 @@ app.listen(PORT, () => {
   console.log(`\n🚀 ProofPanel Backend Server running at http://localhost:${PORT}`);
   console.log(`\n📚 Available Endpoints:`);
   console.log(`   GET  /api/health                      - Health check`);
+  console.log(`   GET  /api/respondent/:hashId          - Get stored respondent attributes`);
+  console.log(`   GET  /api/verification-status/:hashId - Get verification status for a panelist`);
+  console.log(`   POST /api/verification-statuses       - Get verification statuses for multiple panelists`);
   console.log(`   GET  /api/linkedin/auth-url           - Get LinkedIn OAuth URL`);
   console.log(`   POST /api/linkedin/callback           - Exchange LinkedIn code for token`);
   console.log(`   POST /api/send-verification-emails    - Send verification emails via SMTP`);
