@@ -115,14 +115,79 @@ function generateTestRespondent() {
   };
 }
 
+// Generate a respondent with specific filter values (for coverage)
+function generateRespondentWithValues(filterValues) {
+  const firstName = randomFrom(firstNames);
+  const lastName = randomFrom(lastNames);
+  const company = randomFrom(companies);
+
+  return {
+    hashId: generateHashId(),
+    firstName,
+    lastName,
+    email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@${company.toLowerCase().replace(/\s+/g, '')}.com`,
+    company,
+    location: randomFrom(locations),
+    employmentStatus: filterValues.employmentStatus || randomFrom(FILTER_OPTIONS.employmentStatus),
+    jobTitle: filterValues.jobTitle || randomFrom(FILTER_OPTIONS.jobTitle),
+    jobFunction: filterValues.jobFunction || randomFrom(FILTER_OPTIONS.jobFunction),
+    companySize: filterValues.companySize || randomFrom(FILTER_OPTIONS.companySize),
+    industry: filterValues.industry || randomFrom(FILTER_OPTIONS.industry),
+    createdAt: randomDate(),
+    lastActiveAt: randomDate(),
+    verified: Math.random() > 0.2
+  };
+}
+
+// Generate coverage respondents to ensure at least 5 records for ALL filter combinations
+function generateCoverageRespondents(minPerCombination = 5) {
+  const coverageRespondents = [];
+
+  // Generate 5 records for EVERY possible combination of filter values
+  FILTER_OPTIONS.employmentStatus.forEach(employmentStatus => {
+    FILTER_OPTIONS.jobTitle.forEach(jobTitle => {
+      FILTER_OPTIONS.jobFunction.forEach(jobFunction => {
+        FILTER_OPTIONS.companySize.forEach(companySize => {
+          FILTER_OPTIONS.industry.forEach(industry => {
+            // Generate minPerCombination records for this exact combination
+            for (let i = 0; i < minPerCombination; i++) {
+              coverageRespondents.push(generateRespondentWithValues({
+                employmentStatus,
+                jobTitle,
+                jobFunction,
+                companySize,
+                industry
+              }));
+            }
+          });
+        });
+      });
+    });
+  });
+
+  return coverageRespondents;
+}
+
 // Generate dataset
 let respondentsCache = null;
-function getRespondents(count = 500) {
+function getRespondents() {
   if (!respondentsCache) {
     // Always include the test respondent as the first item
     const testRespondent = generateTestRespondent();
-    const otherRespondents = Array.from({ length: count - 1 }, generateRespondent);
-    respondentsCache = [testRespondent, ...otherRespondents];
+
+    // Generate coverage respondents (5 per filter combination)
+    // This ensures EVERY possible filter combination has at least 5 records
+    // Total combinations: 2 × 5 × 10 × 5 × 7 = 3,500 combinations
+    // 5 records each = 17,500 records
+    const coverageRespondents = generateCoverageRespondents(5);
+
+    respondentsCache = [testRespondent, ...coverageRespondents];
+
+    console.log(`\n📊 Dataset Generated:`);
+    console.log(`   - Test respondent: 1`);
+    console.log(`   - Coverage respondents: ${coverageRespondents.length}`);
+    console.log(`   - Total: ${respondentsCache.length}`);
+    console.log(`   - Combinations covered: ${coverageRespondents.length / 5}`);
   }
   return respondentsCache;
 }
@@ -194,6 +259,17 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Regenerate dataset (for testing)
+app.post('/api/regenerate', (req, res) => {
+  respondentsCache = null;
+  const respondents = getRespondents();
+  res.json({
+    success: true,
+    message: 'Dataset regenerated',
+    total: respondents.length
+  });
+});
+
 // Get filter options
 app.get('/api/v1/panel/filters', (req, res) => {
   res.json({
@@ -208,7 +284,7 @@ app.get('/api/v1/panel/users', (req, res) => {
   const pageSize = parseInt(req.query.pageSize) || 20;
   const filters = parseFilters(req.query);
 
-  const allRespondents = getRespondents(500);
+  const allRespondents = getRespondents();
   const filtered = filterRespondents(allRespondents, filters);
 
   const startIndex = (page - 1) * pageSize;
@@ -234,7 +310,7 @@ app.get('/api/v1/panel/profiles', (req, res) => {
   const pageSize = parseInt(req.query.pageSize) || 20;
   const filters = parseFilters(req.query);
 
-  const allRespondents = getRespondents(500);
+  const allRespondents = getRespondents();
   const filtered = filterRespondents(allRespondents, filters);
 
   // Transform to profile format
@@ -276,7 +352,7 @@ app.get('/api/v1/panel/transactions', (req, res) => {
   const pageSize = parseInt(req.query.pageSize) || 20;
   const filters = parseFilters(req.query);
 
-  const allRespondents = getRespondents(500);
+  const allRespondents = getRespondents();
   const filtered = filterRespondents(allRespondents, filters);
 
   // Generate transactions for each respondent
@@ -326,7 +402,7 @@ app.get('/api/v1/panel/activities', (req, res) => {
   const pageSize = parseInt(req.query.pageSize) || 20;
   const filters = parseFilters(req.query);
 
-  const allRespondents = getRespondents(500);
+  const allRespondents = getRespondents();
   const filtered = filterRespondents(allRespondents, filters);
 
   // Generate activities
@@ -372,7 +448,7 @@ app.get('/api/v1/panel/activities', (req, res) => {
 
 // Get single respondent by hashId
 app.get('/api/v1/panel/users/:hashId', (req, res) => {
-  const allRespondents = getRespondents(500);
+  const allRespondents = getRespondents();
   const respondent = allRespondents.find(r => r.hashId === req.params.hashId);
 
   if (!respondent) {
@@ -390,7 +466,7 @@ app.get('/api/v1/panel/users/:hashId', (req, res) => {
 
 // Stats endpoint
 app.get('/api/v1/panel/stats', (req, res) => {
-  const allRespondents = getRespondents(500);
+  const allRespondents = getRespondents();
 
   const stats = {
     totalRespondents: allRespondents.length,
@@ -423,8 +499,9 @@ app.listen(PORT, () => {
   console.log(`   TEST_EMAIL: ${TEST_EMAIL}`);
   console.log(`   (This email will always be the first panelist for testing)`);
   console.log(`\n📚 Available Endpoints:`);
-  console.log(`   GET /api/health                    - Health check`);
-  console.log(`   GET /api/v1/panel/filters          - Get filter options`);
+  console.log(`   GET  /api/health                   - Health check`);
+  console.log(`   POST /api/regenerate               - Regenerate dataset (clears cache)`);
+  console.log(`   GET  /api/v1/panel/filters         - Get filter options`);
   console.log(`   GET /api/v1/panel/users            - Get respondents`);
   console.log(`   GET /api/v1/panel/users/:hashId    - Get single respondent`);
   console.log(`   GET /api/v1/panel/profiles         - Get profiles`);
