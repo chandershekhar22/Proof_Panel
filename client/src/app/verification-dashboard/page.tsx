@@ -49,44 +49,35 @@ export default function VerificationDashboard() {
 
   // Batch loading state
   const BATCH_SIZE = 5;
-  const [currentBatchIndex, setCurrentBatchIndex] = useState(1); // Number of batches loaded
+  const [currentBatchIndex, setCurrentBatchIndex] = useState(() => {
+    // Load saved batch index from localStorage
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('verification-batch-index');
+      return saved ? parseInt(saved, 10) : 1;
+    }
+    return 1;
+  });
 
-  // Get displayed items - always include TEST- account in every batch
+  // Get displayed items - show items in batches of 5
   const getDisplayedItems = (): VerificationItem[] => {
     if (verificationItems.length === 0) return [];
-
-    // Find the test account (hashId starts with "TEST-")
-    const testAccount = verificationItems.find(item => item.panelistId.startsWith("TEST-"));
-
-    // Get all non-test accounts
-    const nonTestAccounts = verificationItems.filter(item => !item.panelistId.startsWith("TEST-"));
-
-    // Calculate how many items to show (excluding test account if it exists)
     const totalItemsToShow = currentBatchIndex * BATCH_SIZE;
-    const nonTestItemsToShow = testAccount ? totalItemsToShow - 1 : totalItemsToShow;
-
-    // Get the non-test items to display
-    const displayedNonTestItems = nonTestAccounts.slice(0, nonTestItemsToShow);
-
-    // Combine: test account first (if exists), then other items
-    if (testAccount) {
-      return [testAccount, ...displayedNonTestItems];
-    }
-    return displayedNonTestItems;
+    return verificationItems.slice(0, totalItemsToShow);
   };
 
   // Check if there are more items to load
   const hasMoreItems = (): boolean => {
-    const testAccount = verificationItems.find(item => item.panelistId.startsWith("TEST-"));
-    const nonTestAccounts = verificationItems.filter(item => !item.panelistId.startsWith("TEST-"));
     const totalItemsToShow = currentBatchIndex * BATCH_SIZE;
-    const nonTestItemsToShow = testAccount ? totalItemsToShow - 1 : totalItemsToShow;
-    return nonTestItemsToShow < nonTestAccounts.length;
+    return totalItemsToShow < verificationItems.length;
   };
 
   // Load more items
   const handleLoadMore = () => {
-    setCurrentBatchIndex(prev => prev + 1);
+    setCurrentBatchIndex(prev => {
+      const newIndex = prev + 1;
+      localStorage.setItem('verification-batch-index', newIndex.toString());
+      return newIndex;
+    });
   };
 
   // Get displayed items
@@ -162,6 +153,7 @@ export default function VerificationDashboard() {
           // Clear saved items since config changed
           localStorage.removeItem("verification-items");
           // Reset batch index to show first batch
+          localStorage.setItem('verification-batch-index', '1');
           setCurrentBatchIndex(1);
 
           // Clear backend verification statuses when config changes

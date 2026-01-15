@@ -24,9 +24,9 @@ export default function LayoutWrapper({
 
   // Default layout with sidebar for admin pages
   return (
-    <div className="flex min-h-screen bg-[#0f0f13]">
+    <div className="min-h-screen bg-[#0f0f13]">
       <Sidebar />
-      <main className="flex-1 overflow-auto">
+      <main className="ml-64 min-h-screen overflow-auto">
         {children}
       </main>
     </div>

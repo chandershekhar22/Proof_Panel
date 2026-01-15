@@ -168,36 +168,29 @@ function generateCoverageRespondents(minPerCombination = 5) {
   return coverageRespondents;
 }
 
-// Generate dataset
+// Generate dataset (only regular respondents, test accounts added at filter time)
 let respondentsCache = null;
 function getRespondents() {
   if (!respondentsCache) {
-    // Always include the test respondent as the first item
-    const testRespondent = generateTestRespondent();
-
     // Generate coverage respondents (5 per filter combination)
     // This ensures EVERY possible filter combination has at least 5 records
     // Total combinations: 2 × 5 × 10 × 5 × 7 = 3,500 combinations
     // 5 records each = 17,500 records
     const coverageRespondents = generateCoverageRespondents(5);
 
-    respondentsCache = [testRespondent, ...coverageRespondents];
+    respondentsCache = coverageRespondents;
 
     console.log(`\n📊 Dataset Generated:`);
-    console.log(`   - Test respondent: 1`);
-    console.log(`   - Coverage respondents: ${coverageRespondents.length}`);
-    console.log(`   - Total: ${respondentsCache.length}`);
-    console.log(`   - Combinations covered: ${coverageRespondents.length / 5}`);
+    console.log(`   - Regular respondents: ${coverageRespondents.length}`);
+    console.log(`   - Test respondents will be inserted at query time (1 per batch of 5)`);
   }
   return respondentsCache;
 }
 
 // Filter respondents based on query params
 function filterRespondents(respondents, filters) {
+  // First, filter regular respondents based on criteria
   const filtered = respondents.filter(r => {
-    // Always include test account regardless of filters
-    if (r.isTestAccount) return true;
-
     if (filters.employmentStatus && filters.employmentStatus.length > 0) {
       if (!filters.employmentStatus.includes(r.employmentStatus)) return false;
     }
@@ -216,7 +209,24 @@ function filterRespondents(respondents, filters) {
     return true;
   });
 
-  return filtered;
+  // Now insert a test respondent at the start of every batch of 5
+  // Pattern: [TEST, reg, reg, reg, reg, TEST, reg, reg, reg, reg, ...]
+  const REGULAR_PER_BATCH = 4; // 4 regular + 1 test = 5 per batch
+  const finalResults = [];
+  let regularIndex = 0;
+
+  while (regularIndex < filtered.length) {
+    // Add 1 test respondent at the start of each batch
+    finalResults.push(generateTestRespondent());
+
+    // Add up to 4 regular respondents
+    for (let i = 0; i < REGULAR_PER_BATCH && regularIndex < filtered.length; i++) {
+      finalResults.push(filtered[regularIndex]);
+      regularIndex++;
+    }
+  }
+
+  return finalResults;
 }
 
 // Parse filter params from query string
