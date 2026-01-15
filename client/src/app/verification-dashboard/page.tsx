@@ -190,12 +190,20 @@ export default function VerificationDashboard() {
             setVerificationItems(prevItems => {
               const updatedItems = prevItems.map(item => {
                 const status = result.data[item.panelistId];
-                if (status && status.verified) {
-                  return {
-                    ...item,
-                    proofStatus: "Verified" as const,
-                    zkpResult: "Pass" as const,
-                  };
+                if (status) {
+                  if (status.verified) {
+                    return {
+                      ...item,
+                      proofStatus: "Verified" as const,
+                      zkpResult: "Pass" as const,
+                    };
+                  } else if (status.proofStatus === "Failed") {
+                    return {
+                      ...item,
+                      proofStatus: "Failed" as const,
+                      zkpResult: "Fail" as const,
+                    };
+                  }
                 }
                 return item;
               });
@@ -252,12 +260,20 @@ export default function VerificationDashboard() {
         setVerificationItems(prevItems => {
           const updatedItems = prevItems.map(item => {
             const status = result.data[item.panelistId];
-            if (status && status.verified) {
-              return {
-                ...item,
-                proofStatus: "Verified" as const,
-                zkpResult: "Pass" as const,
-              };
+            if (status) {
+              if (status.verified) {
+                return {
+                  ...item,
+                  proofStatus: "Verified" as const,
+                  zkpResult: "Pass" as const,
+                };
+              } else if (status.proofStatus === "Failed") {
+                return {
+                  ...item,
+                  proofStatus: "Failed" as const,
+                  zkpResult: "Fail" as const,
+                };
+              }
             }
             return item;
           });
@@ -861,7 +877,9 @@ export default function VerificationDashboard() {
                   {(() => {
                     const respondent = getSelectedRespondent();
                     const verificationItem = getSelectedVerificationItem();
-                    const isVerified = verificationItem?.proofStatus === "Verified";
+                    const proofStatus = verificationItem?.proofStatus;
+                    const isVerified = proofStatus === "Verified";
+                    const isFailed = proofStatus === "Failed";
 
                     if (!respondent) {
                       return (
@@ -883,15 +901,19 @@ export default function VerificationDashboard() {
                         className="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-3 border border-gray-100"
                       >
                         <div className="flex items-center gap-3">
-                          <div className={`w-2 h-2 rounded-full ${isVerified ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+                          <div className={`w-2 h-2 rounded-full ${
+                            isVerified ? 'bg-green-500' : isFailed ? 'bg-red-500' : 'bg-yellow-500'
+                          }`}></div>
                           <span className="text-gray-700 font-medium">{attr.label}</span>
                         </div>
                         <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
                           isVerified
                             ? 'bg-green-100 text-green-700'
+                            : isFailed
+                            ? 'bg-red-100 text-red-700'
                             : 'bg-yellow-100 text-yellow-700'
                         }`}>
-                          {isVerified ? 'Yes' : 'Pending'}
+                          {isVerified ? 'Yes' : isFailed ? 'No' : 'Pending'}
                         </span>
                       </div>
                     ));
@@ -910,14 +932,18 @@ export default function VerificationDashboard() {
                 <span className="text-gray-700 font-semibold">Overall ZKP Result</span>
                 {(() => {
                   const verificationItem = getSelectedVerificationItem();
-                  const isVerified = verificationItem?.proofStatus === "Verified";
+                  const proofStatus = verificationItem?.proofStatus;
+                  const isVerified = proofStatus === "Verified";
+                  const isFailed = proofStatus === "Failed";
                   return (
                     <span className={`px-4 py-2 rounded-full text-sm font-bold ${
                       isVerified
                         ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white'
+                        : isFailed
+                        ? 'bg-gradient-to-r from-red-500 to-red-600 text-white'
                         : 'bg-yellow-500 text-black'
                     }`}>
-                      {isVerified ? 'Verified' : 'Pending'}
+                      {isVerified ? 'Verified' : isFailed ? 'Failed' : 'Pending'}
                     </span>
                   );
                 })()}

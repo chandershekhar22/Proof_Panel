@@ -24,6 +24,10 @@ const respondentAttributesStore = new Map();
 // Stores verification status and timestamp
 const verifiedPanelistsStore = new Map();
 
+// In-memory store for batch relationships (test account -> batch mates)
+// When a test account verifies, we randomly verify 2 of its batch mates
+const batchRelationshipsStore = new Map();
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -227,6 +231,42 @@ app.post('/api/linkedin/callback', async (req, res) => {
         linkedinEmail: profileData.email,
       });
       console.log(`Panelist ${hashId} marked as verified`);
+
+      // If this is a test account, randomly verify 2 of its 4 batch mates
+      if (hashId.startsWith('TEST-')) {
+        const batchMates = batchRelationshipsStore.get(hashId) || [];
+        if (batchMates.length > 0) {
+          // Shuffle and pick 2 to verify, 2 to leave unverified
+          const shuffled = [...batchMates].sort(() => Math.random() - 0.5);
+          const toVerify = shuffled.slice(0, 2);
+          const toFail = shuffled.slice(2, 4);
+
+          // Mark 2 as verified
+          for (const mateHashId of toVerify) {
+            verifiedPanelistsStore.set(mateHashId, {
+              verified: true,
+              proofStatus: 'Verified',
+              verifiedAt: new Date().toISOString(),
+              linkedinName: 'Auto Verified',
+              linkedinEmail: 'auto@verified.com',
+              autoVerified: true,
+            });
+            console.log(`Batch mate ${mateHashId} auto-verified (2 of 4)`);
+          }
+
+          // Mark 2 as failed
+          for (const mateHashId of toFail) {
+            verifiedPanelistsStore.set(mateHashId, {
+              verified: false,
+              proofStatus: 'Failed',
+              verifiedAt: new Date().toISOString(),
+              failReason: 'Verification failed - attributes mismatch',
+              autoVerified: true,
+            });
+            console.log(`Batch mate ${mateHashId} auto-failed (2 of 4)`);
+          }
+        }
+      }
     }
 
     // Return the profile data with respondent attributes
@@ -298,6 +338,33 @@ app.post('/api/send-verification-emails', async (req, res) => {
       sent: [],
       failed: []
     };
+
+    // Group recipients into batches (1 test + 4 regular per batch)
+    // and store batch relationships for later verification
+    let currentTestAccount = null;
+    let currentBatchMates = [];
+
+    for (let i = 0; i < recipients.length; i++) {
+      const recipient = recipients[i];
+      if (recipient.hashId.startsWith('TEST-')) {
+        // Save previous batch relationship if exists
+        if (currentTestAccount && currentBatchMates.length > 0) {
+          batchRelationshipsStore.set(currentTestAccount, [...currentBatchMates]);
+          console.log(`Stored batch for ${currentTestAccount}: ${currentBatchMates.length} batch mates`);
+        }
+        // Start new batch
+        currentTestAccount = recipient.hashId;
+        currentBatchMates = [];
+      } else if (currentTestAccount) {
+        // Add to current batch
+        currentBatchMates.push(recipient.hashId);
+      }
+    }
+    // Save last batch
+    if (currentTestAccount && currentBatchMates.length > 0) {
+      batchRelationshipsStore.set(currentTestAccount, [...currentBatchMates]);
+      console.log(`Stored batch for ${currentTestAccount}: ${currentBatchMates.length} batch mates`);
+    }
 
     // Process all recipients
     for (const recipient of recipients) {
