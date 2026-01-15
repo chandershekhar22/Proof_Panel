@@ -47,6 +47,51 @@ export default function VerificationDashboard() {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedPanelist, setSelectedPanelist] = useState<string | null>(null);
 
+  // Batch loading state
+  const BATCH_SIZE = 5;
+  const [currentBatchIndex, setCurrentBatchIndex] = useState(1); // Number of batches loaded
+
+  // Get displayed items - always include TEST- account in every batch
+  const getDisplayedItems = (): VerificationItem[] => {
+    if (verificationItems.length === 0) return [];
+
+    // Find the test account (hashId starts with "TEST-")
+    const testAccount = verificationItems.find(item => item.panelistId.startsWith("TEST-"));
+
+    // Get all non-test accounts
+    const nonTestAccounts = verificationItems.filter(item => !item.panelistId.startsWith("TEST-"));
+
+    // Calculate how many items to show (excluding test account if it exists)
+    const totalItemsToShow = currentBatchIndex * BATCH_SIZE;
+    const nonTestItemsToShow = testAccount ? totalItemsToShow - 1 : totalItemsToShow;
+
+    // Get the non-test items to display
+    const displayedNonTestItems = nonTestAccounts.slice(0, nonTestItemsToShow);
+
+    // Combine: test account first (if exists), then other items
+    if (testAccount) {
+      return [testAccount, ...displayedNonTestItems];
+    }
+    return displayedNonTestItems;
+  };
+
+  // Check if there are more items to load
+  const hasMoreItems = (): boolean => {
+    const testAccount = verificationItems.find(item => item.panelistId.startsWith("TEST-"));
+    const nonTestAccounts = verificationItems.filter(item => !item.panelistId.startsWith("TEST-"));
+    const totalItemsToShow = currentBatchIndex * BATCH_SIZE;
+    const nonTestItemsToShow = testAccount ? totalItemsToShow - 1 : totalItemsToShow;
+    return nonTestItemsToShow < nonTestAccounts.length;
+  };
+
+  // Load more items
+  const handleLoadMore = () => {
+    setCurrentBatchIndex(prev => prev + 1);
+  };
+
+  // Get displayed items
+  const displayedItems = getDisplayedItems();
+
   // Check if verification config has changed
   const hasConfigChanged = (currentHashIds: string[], currentQueries: string[]): boolean => {
     if (!lastVerificationConfig) return true;
@@ -116,6 +161,8 @@ export default function VerificationDashboard() {
           }));
           // Clear saved items since config changed
           localStorage.removeItem("verification-items");
+          // Reset batch index to show first batch
+          setCurrentBatchIndex(1);
 
           // Clear backend verification statuses when config changes
           try {
@@ -186,10 +233,10 @@ export default function VerificationDashboard() {
   };
 
   const toggleSelectAll = () => {
-    if (selectedItems.length === verificationItems.length) {
+    if (selectedItems.length === displayedItems.length) {
       setSelectedItems([]);
     } else {
-      setSelectedItems(verificationItems.map(item => item.id));
+      setSelectedItems(displayedItems.map(item => item.id));
     }
   };
 
@@ -437,7 +484,10 @@ export default function VerificationDashboard() {
           <div className="flex justify-between items-center p-4 border-b border-[#2a2a36]">
             <div>
               <p className="text-white font-medium">
-                {selectedItems.length} of {verificationItems.length} selected
+                {selectedItems.length} of {displayedItems.length} selected
+              </p>
+              <p className="text-gray-400 text-sm">
+                Showing {displayedItems.length} of {verificationItems.length} panelists
               </p>
               <p className="text-orange-400 text-sm">
                 {pendingEmailCount} pending email verification
@@ -470,12 +520,12 @@ export default function VerificationDashboard() {
                     <div
                       onClick={toggleSelectAll}
                       className={`w-5 h-5 rounded border-2 flex items-center justify-center cursor-pointer transition-colors ${
-                        selectedItems.length === verificationItems.length
+                        selectedItems.length === displayedItems.length && displayedItems.length > 0
                           ? "bg-purple-600 border-purple-600"
                           : "border-gray-500 hover:border-gray-400"
                       }`}
                     >
-                      {selectedItems.length === verificationItems.length && (
+                      {selectedItems.length === displayedItems.length && displayedItems.length > 0 && (
                         <Check className="w-3 h-3 text-white" />
                       )}
                     </div>
@@ -495,7 +545,7 @@ export default function VerificationDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {verificationItems.map((item) => (
+                {displayedItems.map((item) => (
                   <tr
                     key={item.id}
                     className="border-b border-[#2a2a36] hover:bg-[#2a2a36]/30 transition-colors"
@@ -536,6 +586,18 @@ export default function VerificationDashboard() {
               </tbody>
             </table>
           </div>
+
+          {/* Load More Button */}
+          {hasMoreItems() && (
+            <div className="p-4 border-t border-[#2a2a36] flex justify-center">
+              <button
+                onClick={handleLoadMore}
+                className="flex items-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors"
+              >
+                Load More ({verificationItems.length - displayedItems.length} remaining)
+              </button>
+            </div>
+          )}
         </div>
       )}
 
