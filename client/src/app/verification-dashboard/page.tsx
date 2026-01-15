@@ -221,8 +221,9 @@ export default function VerificationDashboard() {
     initializeAndFetchStatuses();
   }, [loadedData, selectedQueries]);
 
-  const pendingEmailCount = verificationItems.filter(item => item.emailStatus === "Pending").length;
-  const sentEmailCount = verificationItems.filter(item => item.emailStatus === "Sent").length;
+  // Count pending/sent for displayed batch only
+  const pendingEmailCount = displayedItems.filter(item => item.emailStatus === "Pending").length;
+  const sentEmailCount = displayedItems.filter(item => item.emailStatus === "Sent").length;
 
   const toggleSelectItem = (id: string) => {
     if (selectedItems.includes(id)) {
@@ -297,8 +298,8 @@ export default function VerificationDashboard() {
     setSendError(null);
 
     try {
-      // Prepare recipients list (only pending ones) with full respondent data
-      const pendingItems = verificationItems.filter(item => item.emailStatus === "Pending");
+      // Prepare recipients list (only pending ones from displayed batch) with full respondent data
+      const pendingItems = displayedItems.filter(item => item.emailStatus === "Pending");
       const recipients = pendingItems.map(item => {
         // Find the full respondent data
         const respondent = loadedData?.find(r => r.hashId === item.panelistId);
@@ -587,15 +588,23 @@ export default function VerificationDashboard() {
             </table>
           </div>
 
-          {/* Load More Button */}
+          {/* Load More Button - only enabled when all emails in current batch are sent */}
           {hasMoreItems() && (
-            <div className="p-4 border-t border-[#2a2a36] flex justify-center">
+            <div className="p-4 border-t border-[#2a2a36] flex flex-col items-center gap-2">
               <button
                 onClick={handleLoadMore}
-                className="flex items-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors"
+                disabled={pendingEmailCount > 0}
+                className={`flex items-center gap-2 px-6 py-3 font-medium rounded-lg transition-colors ${
+                  pendingEmailCount > 0
+                    ? "bg-gray-600 text-gray-400 cursor-not-allowed"
+                    : "bg-purple-600 hover:bg-purple-700 text-white"
+                }`}
               >
                 Load More ({verificationItems.length - displayedItems.length} remaining)
               </button>
+              {pendingEmailCount > 0 && (
+                <p className="text-gray-500 text-sm">Send emails to current batch first</p>
+              )}
             </div>
           )}
         </div>
