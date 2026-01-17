@@ -2,10 +2,23 @@ const express = require('express');
 const cors = require('cors');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
+const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 
 const app = express();
 const PORT = 3002;
+
+// Supabase Configuration
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_ANON_KEY;
+let supabase = null;
+
+if (supabaseUrl && supabaseKey && supabaseUrl !== 'your_supabase_url') {
+  supabase = createClient(supabaseUrl, supabaseKey);
+  console.log('Supabase client initialized');
+} else {
+  console.log('Supabase not configured - using in-memory storage only');
+}
 
 // LinkedIn OAuth Configuration
 const LINKEDIN_CLIENT_ID = process.env.LINKEDIN_CLIENT_ID;
@@ -27,6 +40,37 @@ const verifiedPanelistsStore = new Map();
 // In-memory store for batch relationships (test account -> batch mates)
 // When a test account verifies, we randomly verify 2 of its batch mates
 const batchRelationshipsStore = new Map();
+
+// Helper function to store verified panelist in Supabase
+async function storeVerifiedPanelist(hashId, attributes, status = 'verified') {
+  if (!supabase) {
+    console.log('Supabase not configured, skipping database store');
+    return;
+  }
+
+  try {
+    const { error } = await supabase
+      .from('verified_panelists')
+      .upsert({
+        hash_id: hashId,
+        status: status, // 'verified' or 'failed'
+        job_title: attributes.jobTitle || null,
+        industry: attributes.industry || null,
+        company_size: attributes.companySize || null,
+        job_function: attributes.jobFunction || null,
+        employment_status: attributes.employmentStatus || null,
+        verified_at: new Date().toISOString(),
+      }, { onConflict: 'hash_id' });
+
+    if (error) {
+      console.error('Error storing in Supabase:', error);
+    } else {
+      console.log(`Stored ${status} panelist ${hashId} in Supabase`);
+    }
+  } catch (err) {
+    console.error('Supabase store error:', err);
+  }
+}
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -92,6 +136,99 @@ app.post('/api/clear-verification-statuses', (req, res) => {
 
   console.log('Verification statuses cleared');
   res.json({ success: true, message: 'Verification statuses cleared' });
+});
+
+// Get aggregated verified panelists data
+app.get('/api/verified-panelists/aggregated', async (req, res) => {
+  try {
+    let verifiedData = [];
+    let failedCount = 0;
+
+    if (supabase) {
+      // Fetch from Supabase
+      const { data: verified, error: verifiedError } = await supabase
+        .from('verified_panelists')
+        .select('*')
+        .eq('status', 'verified');
+
+      if (verifiedError) {
+        console.error('Supabase fetch error:', verifiedError);
+      } else {
+        verifiedData = verified || [];
+      }
+
+      const { count, error: countError } = await supabase
+        .from('verified_panelists')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'failed');
+
+      if (!countError) {
+        failedCount = count || 0;
+      }
+    } else {
+      // Fall back to in-memory store
+      for (const [hashId, status] of verifiedPanelistsStore.entries()) {
+        if (status.proofStatus === 'Verified') {
+          const attributes = respondentAttributesStore.get(hashId) || {};
+          verifiedData.push({
+            hash_id: hashId,
+            job_title: attributes.jobTitle,
+            industry: attributes.industry,
+            company_size: attributes.companySize,
+            job_function: attributes.jobFunction,
+            employment_status: attributes.employmentStatus,
+          });
+        } else if (status.proofStatus === 'Failed') {
+          failedCount++;
+        }
+      }
+    }
+
+    // Aggregate the data
+    const aggregated = {
+      jobTitle: {},
+      industry: {},
+      companySize: {},
+      jobFunction: {},
+      employmentStatus: {},
+      totalVerified: verifiedData.length,
+      totalFailed: failedCount,
+    };
+
+    for (const panelist of verifiedData) {
+      // Job Title
+      if (panelist.job_title) {
+        aggregated.jobTitle[panelist.job_title] = (aggregated.jobTitle[panelist.job_title] || 0) + 1;
+      }
+      // Industry
+      if (panelist.industry) {
+        aggregated.industry[panelist.industry] = (aggregated.industry[panelist.industry] || 0) + 1;
+      }
+      // Company Size
+      if (panelist.company_size) {
+        aggregated.companySize[panelist.company_size] = (aggregated.companySize[panelist.company_size] || 0) + 1;
+      }
+      // Job Function
+      if (panelist.job_function) {
+        aggregated.jobFunction[panelist.job_function] = (aggregated.jobFunction[panelist.job_function] || 0) + 1;
+      }
+      // Employment Status
+      if (panelist.employment_status) {
+        aggregated.employmentStatus[panelist.employment_status] = (aggregated.employmentStatus[panelist.employment_status] || 0) + 1;
+      }
+    }
+
+    res.json({
+      success: true,
+      data: aggregated,
+    });
+  } catch (error) {
+    console.error('Error fetching aggregated data:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch aggregated data',
+    });
+  }
 });
 
 // LinkedIn OAuth - Get Authorization URL
@@ -232,6 +369,9 @@ app.post('/api/linkedin/callback', async (req, res) => {
       });
       console.log(`Panelist ${hashId} marked as verified`);
 
+      // Store in Supabase
+      await storeVerifiedPanelist(hashId, respondentAttributes, 'verified');
+
       // If this is a test account, randomly verify 2 of its 4 batch mates
       if (hashId.startsWith('TEST-')) {
         const batchMates = batchRelationshipsStore.get(hashId) || [];
@@ -252,6 +392,10 @@ app.post('/api/linkedin/callback', async (req, res) => {
               autoVerified: true,
             });
             console.log(`Batch mate ${mateHashId} auto-verified (2 of 4)`);
+
+            // Store batch mate in Supabase
+            const mateAttributes = respondentAttributesStore.get(mateHashId) || {};
+            await storeVerifiedPanelist(mateHashId, mateAttributes, 'verified');
           }
 
           // Mark 2 as failed
@@ -264,6 +408,10 @@ app.post('/api/linkedin/callback', async (req, res) => {
               autoVerified: true,
             });
             console.log(`Batch mate ${mateHashId} auto-failed (2 of 4)`);
+
+            // Store failed panelist in Supabase
+            const mateAttributes = respondentAttributesStore.get(mateHashId) || {};
+            await storeVerifiedPanelist(mateHashId, mateAttributes, 'failed');
           }
         }
       }
@@ -531,17 +679,20 @@ function generateEmailTemplate(recipient, verificationLink) {
 app.listen(PORT, () => {
   console.log(`\n🚀 ProofPanel Backend Server running at http://localhost:${PORT}`);
   console.log(`\n📚 Available Endpoints:`);
-  console.log(`   GET  /api/health                      - Health check`);
-  console.log(`   GET  /api/respondent/:hashId          - Get stored respondent attributes`);
-  console.log(`   GET  /api/verification-status/:hashId - Get verification status for a panelist`);
-  console.log(`   POST /api/verification-statuses       - Get verification statuses for multiple panelists`);
-  console.log(`   GET  /api/linkedin/auth-url           - Get LinkedIn OAuth URL`);
-  console.log(`   POST /api/linkedin/callback           - Exchange LinkedIn code for token`);
-  console.log(`   POST /api/send-verification-emails    - Send verification emails via SMTP`);
+  console.log(`   GET  /api/health                         - Health check`);
+  console.log(`   GET  /api/respondent/:hashId             - Get stored respondent attributes`);
+  console.log(`   GET  /api/verification-status/:hashId    - Get verification status for a panelist`);
+  console.log(`   POST /api/verification-statuses          - Get verification statuses for multiple panelists`);
+  console.log(`   GET  /api/verified-panelists/aggregated  - Get aggregated verified panelists data`);
+  console.log(`   GET  /api/linkedin/auth-url              - Get LinkedIn OAuth URL`);
+  console.log(`   POST /api/linkedin/callback              - Exchange LinkedIn code for token`);
+  console.log(`   POST /api/send-verification-emails       - Send verification emails via SMTP`);
   console.log(`\n🔗 LinkedIn OAuth Configuration:`);
   console.log(`   Client ID: ${LINKEDIN_CLIENT_ID ? '✓ Configured' : '✗ Not configured'}`);
   console.log(`   Client Secret: ${LINKEDIN_CLIENT_SECRET ? '✓ Configured' : '✗ Not configured'}`);
   console.log(`   Redirect URI: ${LINKEDIN_REDIRECT_URI}`);
+  console.log(`\n💾 Supabase Configuration:`);
+  console.log(`   Status: ${supabase ? '✓ Connected' : '✗ Not configured (using in-memory storage)'}`);
   console.log(`\n📧 Email Behavior:`);
   console.log(`   - Real emails are ONLY sent to test accounts (hashId starts with "TEST-")`);
   console.log(`   - Other panelists are marked as "Sent" without actual email delivery`);
