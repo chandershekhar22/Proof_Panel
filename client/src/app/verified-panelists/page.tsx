@@ -22,44 +22,77 @@ interface CategoryCardProps {
 }
 
 function CategoryCard({ title, icon, data, colorClass }: CategoryCardProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const sortedEntries = Object.entries(data).sort((a, b) => b[1] - a[1]);
   const total = sortedEntries.reduce((sum, [, count]) => sum + count, 0);
 
+  // Get the accent color for the progress bar
+  const getAccentColor = () => {
+    if (colorClass.includes('blue')) return 'bg-blue-500';
+    if (colorClass.includes('purple')) return 'bg-purple-500';
+    if (colorClass.includes('green')) return 'bg-green-500';
+    if (colorClass.includes('orange')) return 'bg-orange-500';
+    if (colorClass.includes('cyan')) return 'bg-cyan-500';
+    return 'bg-purple-500';
+  };
+
   return (
-    <div className="bg-[#1a1a24] rounded-xl p-6 border border-[#2a2a36]">
-      <div className="flex items-center gap-3 mb-4">
-        <div className={`p-2 rounded-lg ${colorClass}`}>
-          {icon}
+    <div
+      className={`bg-[#1a1a24] rounded-xl p-6 border transition-all duration-300 cursor-pointer ${
+        isExpanded ? 'border-purple-500/50' : 'border-[#2a2a36] hover:border-[#3a3a46]'
+      }`}
+      onClick={() => setIsExpanded(!isExpanded)}
+    >
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className={`p-2 rounded-lg ${colorClass}`}>
+            {icon}
+          </div>
+          <div>
+            <h3 className="text-white font-semibold">{title}</h3>
+            <p className="text-gray-500 text-sm">{total} verified</p>
+          </div>
         </div>
-        <div>
-          <h3 className="text-white font-semibold">{title}</h3>
-          <p className="text-gray-500 text-sm">{total} verified</p>
+        <div className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}>
+          <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
         </div>
       </div>
 
-      <div className="space-y-3">
-        {sortedEntries.length === 0 ? (
-          <p className="text-gray-500 text-sm">No data yet</p>
-        ) : (
-          sortedEntries.map(([label, count]) => {
-            const percentage = total > 0 ? (count / total) * 100 : 0;
-            return (
-              <div key={label}>
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-gray-300 text-sm truncate max-w-[70%]">{label}</span>
-                  <span className="text-white font-medium">{count}</span>
+      {/* Collapsed view - just show count */}
+      {!isExpanded && (
+        <p className="text-gray-500 text-sm">
+          {sortedEntries.length === 0 ? 'No data yet' : `Click to see ${sortedEntries.length} categories`}
+        </p>
+      )}
+
+      {/* Expanded view - show all data with progress bars */}
+      {isExpanded && (
+        <div className="space-y-3 mt-4 pt-4 border-t border-[#2a2a36]">
+          {sortedEntries.length === 0 ? (
+            <p className="text-gray-500 text-sm">No data yet</p>
+          ) : (
+            sortedEntries.map(([label, count]) => {
+              const percentage = total > 0 ? (count / total) * 100 : 0;
+              return (
+                <div key={label}>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-gray-300 text-sm truncate max-w-[70%]">{label}</span>
+                    <span className="text-white font-medium">{count}</span>
+                  </div>
+                  <div className="h-2 bg-[#2a2a36] rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${getAccentColor()}`}
+                      style={{ width: `${percentage}%` }}
+                    />
+                  </div>
                 </div>
-                <div className="h-2 bg-[#2a2a36] rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-500 ${colorClass.replace('bg-', 'bg-').replace('/20', '')}`}
-                    style={{ width: `${percentage}%` }}
-                  />
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
+              );
+            })
+          )}
+        </div>
+      )}
     </div>
   );
 }
