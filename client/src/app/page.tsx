@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Link2, FileText, Filter, Check, Download, ChevronDown, Table, CheckCircle, Loader2 } from "lucide-react";
+import { FileText, Filter, Check, Download, ChevronDown, Table, CheckCircle, Loader2, Link2 } from "lucide-react";
 import Link from "next/link";
 import { useAppContext, Respondent } from "@/context/AppContext";
 
@@ -184,13 +184,7 @@ function FilterDropdown({
 export default function Dashboard() {
   const {
     apiBaseUrl,
-    setApiBaseUrl,
-    apiKey,
-    setApiKey,
-    environment,
-    setEnvironment,
     isConnected,
-    setIsConnected,
     selectedEndpoint,
     setSelectedEndpoint,
     selectedFilters,
@@ -206,12 +200,6 @@ export default function Dashboard() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const handleConnect = () => {
-    if (apiKey.trim()) {
-      setIsConnected(!isConnected);
-    }
-  };
 
   const handleFilterChange = (category: string, values: string[]) => {
     setSelectedFilters({
@@ -309,7 +297,7 @@ export default function Dashboard() {
       <div className="flex justify-between items-start mb-8">
         <div>
           <h1 className="text-3xl font-bold text-white mb-2">Dashboard</h1>
-          <p className="text-gray-400">Connect to panel database and load datasets</p>
+          <p className="text-gray-400">Select data endpoint and load datasets</p>
         </div>
         <div className="flex items-center gap-2">
           <span className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500"}`}></span>
@@ -317,75 +305,24 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* API Connection Card */}
-      <div className="bg-[#1a1a24] rounded-xl p-6 border border-[#2a2a36] mb-6">
-        <div className="flex items-center gap-3 mb-6">
-          <Link2 className="w-5 h-5 text-white" />
-          <h2 className="text-lg font-semibold text-white">API Connection</h2>
-        </div>
-
-        <div className="space-y-6">
-          {/* API Base URL */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-              API Base URL
-            </label>
-            <input
-              type="text"
-              value={apiBaseUrl}
-              onChange={(e) => setApiBaseUrl(e.target.value)}
-              disabled={isConnected}
-              className="w-full bg-[#0f0f13] border border-[#2a2a36] rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors disabled:opacity-50"
-              placeholder="http://localhost:3001"
-            />
+      {/* Not Connected State */}
+      {!isConnected && (
+        <div className="flex flex-col items-center justify-center py-32">
+          <div className="w-16 h-16 bg-[#1a1a24] rounded-full flex items-center justify-center mb-6">
+            <Link2 className="w-8 h-8 text-gray-500" />
           </div>
-
-          {/* API Key and Environment Row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                API Key
-              </label>
-              <input
-                type="password"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                disabled={isConnected}
-                className="w-full bg-[#0f0f13] border border-[#2a2a36] rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors disabled:opacity-50"
-                placeholder="Enter your API key"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                Environment
-              </label>
-              <select
-                value={environment}
-                onChange={(e) => setEnvironment(e.target.value)}
-                disabled={isConnected}
-                className="w-full bg-[#0f0f13] border border-[#2a2a36] rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500 transition-colors appearance-none cursor-pointer disabled:opacity-50"
-              >
-                <option value="Production">Production</option>
-                <option value="Staging">Staging</option>
-                <option value="Development">Development</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Connect Button */}
-          <button
-            onClick={handleConnect}
-            className={`font-medium px-6 py-3 rounded-lg transition-colors flex items-center gap-2 ${
-              isConnected
-                ? "bg-green-600 hover:bg-green-700 text-white"
-                : "bg-purple-600 hover:bg-purple-700 text-white"
-            }`}
+          <h2 className="text-xl font-semibold text-white mb-2">API Not Connected</h2>
+          <p className="text-gray-400 text-center mb-6 max-w-md">
+            Please connect to the API first to load datasets and access dashboard features.
+          </p>
+          <Link
+            href="/settings"
+            className="bg-purple-600 hover:bg-purple-700 text-white font-medium px-6 py-3 rounded-lg transition-colors"
           >
-            {isConnected && <Check className="w-4 h-4" />}
-            {isConnected ? "Connected" : "Connect to Panel"}
-          </button>
+            Go to Settings
+          </Link>
         </div>
-      </div>
+      )}
 
       {/* Show sections only when connected */}
       {isConnected && (

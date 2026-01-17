@@ -498,9 +498,6 @@ export default function VerificationDashboard() {
               <p className="text-gray-400 text-sm">
                 Showing {displayedItems.length} of {verificationItems.length} panelists
               </p>
-              <p className="text-orange-400 text-sm">
-                {pendingEmailCount} pending email verification
-              </p>
             </div>
             <div className="flex items-center gap-3">
               <button
