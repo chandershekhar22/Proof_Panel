@@ -31,7 +31,12 @@ export default function VerificationDashboard() {
     selectedQueries,
     lastVerificationConfig,
     setLastVerificationConfig,
+    getActiveDataSet,
   } = useAppContext();
+
+  // Get the active data set or fall back to current loaded data
+  const activeDataSet = getActiveDataSet();
+  const workingData = activeDataSet ? activeDataSet.data : loadedData;
 
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -101,8 +106,8 @@ export default function VerificationDashboard() {
   // Generate verification items from loaded data and fetch statuses
   useEffect(() => {
     const initializeAndFetchStatuses = async () => {
-      if (loadedData && loadedData.length > 0) {
-        const currentHashIds = loadedData.map(r => r.hashId);
+      if (workingData && workingData.length > 0) {
+        const currentHashIds = workingData.map(r => r.hashId);
         const configChanged = hasConfigChanged(currentHashIds, selectedQueries);
 
         // Try to load saved items from localStorage
@@ -117,7 +122,7 @@ export default function VerificationDashboard() {
             items = items.filter(item => currentHashIds.includes(item.panelistId));
             // Add any new items that weren't in saved data
             const existingIds = items.map(item => item.panelistId);
-            loadedData.forEach((respondent, index) => {
+            workingData.forEach((respondent, index) => {
               if (!existingIds.includes(respondent.hashId)) {
                 items.push({
                   id: `verification-${index}`,
@@ -131,7 +136,7 @@ export default function VerificationDashboard() {
             });
           } catch {
             // If parsing fails, create new items
-            items = loadedData.map((respondent, index) => ({
+            items = workingData.map((respondent, index) => ({
               id: `verification-${index}`,
               panelistId: respondent.hashId,
               email: respondent.email,
@@ -142,7 +147,7 @@ export default function VerificationDashboard() {
           }
         } else {
           // Config changed, create fresh items
-          items = loadedData.map((respondent, index) => ({
+          items = workingData.map((respondent, index) => ({
             id: `verification-${index}`,
             panelistId: respondent.hashId,
             email: respondent.email,
@@ -178,7 +183,7 @@ export default function VerificationDashboard() {
 
         // Fetch verification statuses for these items
         try {
-          const hashIds = loadedData.map(r => r.hashId);
+          const hashIds = workingData.map(r => r.hashId);
           const response = await fetch("http://localhost:3002/api/verification-statuses", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -219,7 +224,7 @@ export default function VerificationDashboard() {
     };
 
     initializeAndFetchStatuses();
-  }, [loadedData, selectedQueries]);
+  }, [workingData, selectedQueries]);
 
   // Count pending/sent for displayed batch only
   const pendingEmailCount = displayedItems.filter(item => item.emailStatus === "Pending").length;

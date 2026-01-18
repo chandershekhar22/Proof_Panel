@@ -26,6 +26,17 @@ export interface VerificationConfig {
   selectedQueries: string[];
 }
 
+// Data Set type for storing multiple filter configurations
+export interface DataSet {
+  id: string;
+  name: string;
+  createdAt: string;
+  endpoint: string;
+  filters: Record<string, string[]>;
+  data: Respondent[];
+  totalRecords: number;
+}
+
 // App State type
 interface AppState {
   // Connection
@@ -43,6 +54,10 @@ interface AppState {
   // Loaded Data
   loadedData: Respondent[] | null;
   totalRecords: number;
+
+  // Multiple Data Sets
+  dataSets: DataSet[];
+  activeDataSetId: string | null;
 
   // Manage Proof
   selectedSource: string | null;
@@ -65,6 +80,11 @@ interface AppContextType extends AppState {
   setSelectedSource: (source: string | null) => void;
   setSelectedQueries: (queries: string[]) => void;
   setLastVerificationConfig: (config: VerificationConfig | null) => void;
+  // Data Sets
+  addDataSet: (name: string) => void;
+  removeDataSet: (id: string) => void;
+  setActiveDataSetId: (id: string | null) => void;
+  getActiveDataSet: () => DataSet | null;
   resetFilters: () => void;
   resetAll: () => void;
 }
@@ -86,6 +106,8 @@ const defaultState: AppState = {
   selectedFilters: defaultFilters,
   loadedData: null,
   totalRecords: 0,
+  dataSets: [],
+  activeDataSetId: null,
   selectedSource: null,
   selectedQueries: [],
   lastVerificationConfig: null,
@@ -130,6 +152,47 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const setSelectedQueries = (queries: string[]) => setState(prev => ({ ...prev, selectedQueries: queries }));
   const setLastVerificationConfig = (config: VerificationConfig | null) => setState(prev => ({ ...prev, lastVerificationConfig: config }));
 
+  // Data Set functions
+  const addDataSet = (name: string) => {
+    if (!state.loadedData || !state.selectedEndpoint) return;
+
+    const newDataSet: DataSet = {
+      id: `dataset-${Date.now()}`,
+      name: name,
+      createdAt: new Date().toISOString(),
+      endpoint: state.selectedEndpoint,
+      filters: { ...state.selectedFilters },
+      data: [...state.loadedData],
+      totalRecords: state.totalRecords,
+    };
+
+    setState(prev => ({
+      ...prev,
+      dataSets: [...(prev.dataSets || []), newDataSet],
+      // Clear current loaded data after saving
+      loadedData: null,
+      totalRecords: 0,
+      selectedFilters: defaultFilters,
+    }));
+  };
+
+  const removeDataSet = (id: string) => {
+    setState(prev => ({
+      ...prev,
+      dataSets: (prev.dataSets || []).filter(ds => ds.id !== id),
+      activeDataSetId: prev.activeDataSetId === id ? null : prev.activeDataSetId,
+    }));
+  };
+
+  const setActiveDataSetId = (id: string | null) => {
+    setState(prev => ({ ...prev, activeDataSetId: id }));
+  };
+
+  const getActiveDataSet = (): DataSet | null => {
+    if (!state.activeDataSetId || !state.dataSets) return null;
+    return state.dataSets.find(ds => ds.id === state.activeDataSetId) || null;
+  };
+
   const resetFilters = () => setState(prev => ({ ...prev, selectedFilters: defaultFilters }));
 
   const resetAll = () => {
@@ -157,6 +220,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setSelectedSource,
         setSelectedQueries,
         setLastVerificationConfig,
+        addDataSet,
+        removeDataSet,
+        setActiveDataSetId,
+        getActiveDataSet,
         resetFilters,
         resetAll,
       }}

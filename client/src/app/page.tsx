@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { FileText, Filter, Check, Download, ChevronDown, Table, CheckCircle, Loader2, Link2 } from "lucide-react";
+import { FileText, Filter, Check, Download, ChevronDown, Table, CheckCircle, Loader2, Link2, Plus, Trash2, Database } from "lucide-react";
 import Link from "next/link";
 import { useAppContext, Respondent } from "@/context/AppContext";
 
@@ -196,10 +196,15 @@ export default function Dashboard() {
     resetFilters,
     setSelectedSource,
     setSelectedQueries,
+    dataSets,
+    addDataSet,
+    removeDataSet,
   } = useAppContext();
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [dataSetName, setDataSetName] = useState("");
 
   const handleFilterChange = (category: string, values: string[]) => {
     setSelectedFilters({
@@ -289,6 +294,23 @@ export default function Dashboard() {
     });
 
     return totalFields > 0 ? ((filledFields / totalFields) * 100).toFixed(1) : 0;
+  };
+
+  const handleSaveDataSet = () => {
+    if (!dataSetName.trim()) return;
+    addDataSet(dataSetName.trim());
+    setDataSetName("");
+    setShowSaveModal(false);
+  };
+
+  const getFilterSummary = (filters: Record<string, string[]>) => {
+    const parts: string[] = [];
+    Object.entries(filters).forEach(([key, values]) => {
+      if (values.length > 0) {
+        parts.push(`${values.length} ${key}`);
+      }
+    });
+    return parts.length > 0 ? parts.join(", ") : "No filters";
   };
 
   return (
@@ -442,22 +464,128 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  {/* Success Message */}
-                  <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4 flex items-center gap-3">
-                    <CheckCircle className="w-5 h-5 text-green-400" />
-                    <p className="text-green-400">
-                      Dataset loaded successfully! Navigate to{" "}
-                      <Link href="/manage-proof" className="text-purple-400 font-medium hover:underline">
-                        Manage Proof
-                      </Link>{" "}
-                      to run verification queries.
-                    </p>
+                  {/* Success Message and Save Button */}
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4 flex items-center gap-3 flex-1">
+                      <CheckCircle className="w-5 h-5 text-green-400" />
+                      <p className="text-green-400">
+                        Dataset loaded successfully! Navigate to{" "}
+                        <Link href="/manage-proof" className="text-purple-400 font-medium hover:underline">
+                          Manage Proof
+                        </Link>{" "}
+                        or save as a data set.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setShowSaveModal(true)}
+                      className="bg-purple-600 hover:bg-purple-700 text-white font-medium px-6 py-3 rounded-lg transition-colors flex items-center gap-2 whitespace-nowrap"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Save as Data Set
+                    </button>
                   </div>
                 </>
               )}
             </div>
           )}
+
+          {/* Saved Data Sets Section */}
+          {dataSets && dataSets.length > 0 && (
+            <div className="bg-[#1a1a24] rounded-xl p-6 border border-[#2a2a36] mt-6">
+              <div className="flex items-center gap-3 mb-6">
+                <Database className="w-5 h-5 text-white" />
+                <h2 className="text-lg font-semibold text-white">Saved Data Sets</h2>
+                <span className="bg-purple-600/20 text-purple-400 text-xs font-medium px-2 py-1 rounded-full">
+                  {dataSets.length} saved
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {dataSets.map((ds) => (
+                  <div
+                    key={ds.id}
+                    className="bg-[#0f0f13] rounded-lg p-4 border border-[#2a2a36] hover:border-[#3a3a46] transition-colors"
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <h3 className="text-white font-medium">{ds.name}</h3>
+                        <p className="text-gray-500 text-xs">
+                          {new Date(ds.createdAt).toLocaleDateString()} at{" "}
+                          {new Date(ds.createdAt).toLocaleTimeString()}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => removeDataSet(ds.id)}
+                        className="text-gray-500 hover:text-red-400 transition-colors p-1"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-400">Records:</span>
+                        <span className="text-white">{ds.totalRecords.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-400">Endpoint:</span>
+                        <span className="text-white text-xs">{ds.endpoint}</span>
+                      </div>
+                      <div className="text-xs text-gray-500 mt-2 pt-2 border-t border-[#2a2a36]">
+                        {getFilterSummary(ds.filters)}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <p className="text-gray-500 text-sm mt-4">
+                Go to{" "}
+                <Link href="/manage-proof" className="text-purple-400 hover:underline">
+                  Manage Proof
+                </Link>{" "}
+                to select and work with a data set.
+              </p>
+            </div>
+          )}
         </>
+      )}
+
+      {/* Save Data Set Modal */}
+      {showSaveModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-[#1a1a24] rounded-xl p-6 border border-[#2a2a36] w-full max-w-md">
+            <h3 className="text-lg font-semibold text-white mb-4">Save Data Set</h3>
+            <p className="text-gray-400 text-sm mb-4">
+              Save this filtered data as a named set to use later in Manage Proof.
+            </p>
+            <input
+              type="text"
+              value={dataSetName}
+              onChange={(e) => setDataSetName(e.target.value)}
+              placeholder="Enter data set name (e.g., IT Directors Q1)"
+              className="w-full bg-[#0f0f13] border border-[#2a2a36] rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 mb-4"
+              autoFocus
+            />
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowSaveModal(false);
+                  setDataSetName("");
+                }}
+                className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveDataSet}
+                disabled={!dataSetName.trim()}
+                className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium px-4 py-2 rounded-lg transition-colors"
+              >
+                Save Data Set
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

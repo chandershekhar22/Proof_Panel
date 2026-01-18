@@ -3,8 +3,8 @@
 import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Settings2, Clock, Check, Maximize2 } from "lucide-react";
-import { useAppContext } from "@/context/AppContext";
+import { Settings2, Clock, Check, Maximize2, Database, ChevronDown } from "lucide-react";
+import { useAppContext, DataSet } from "@/context/AppContext";
 
 // LinkedIn Icon Component
 function LinkedInIcon({ className }: { className?: string }) {
@@ -77,9 +77,20 @@ export default function ManageProof() {
     setSelectedSource,
     selectedQueries,
     setSelectedQueries,
+    dataSets,
+    activeDataSetId,
+    setActiveDataSetId,
+    getActiveDataSet,
   } = useAppContext();
 
-  const hasDataset = loadedData && loadedData.length > 0;
+  // Get the active data set or fall back to current loaded data
+  const activeDataSet = getActiveDataSet();
+
+  // Determine which data to use: active data set or loaded data
+  const workingData = activeDataSet ? activeDataSet.data : loadedData;
+  const workingFilters = activeDataSet ? activeDataSet.filters : selectedFilters;
+
+  const hasDataset = (workingData && workingData.length > 0) || (dataSets && dataSets.length > 0);
   const hasInitializedRef = useRef(false);
   const previousSourceRef = useRef<string | null>(null);
 
@@ -134,7 +145,7 @@ export default function ManageProof() {
     if (isOnStep2 && previousSourceRef.current === null && !hasAppliedDefaultsRef.current) {
       // Only apply if queries haven't been set yet
       if (selectedQueries.length === 0) {
-        const defaultQueries = calculateDefaultQueries(selectedFilters);
+        const defaultQueries = calculateDefaultQueries(workingFilters);
         console.log("Refresh scenario - applying defaults:", defaultQueries);
         if (defaultQueries.length > 0) {
           setSelectedQueries(defaultQueries);
@@ -151,14 +162,14 @@ export default function ManageProof() {
 
     // Track previous source for next render
     previousSourceRef.current = selectedSource;
-  }, [selectedSource, selectedFilters, selectedQueries, setSelectedQueries]);
+  }, [selectedSource, workingFilters, selectedQueries, setSelectedQueries]);
 
   const handleContinue = () => {
     // Calculate default queries from current filters - pass filters directly
-    const defaultQueries = calculateDefaultQueries(selectedFilters);
+    const defaultQueries = calculateDefaultQueries(workingFilters);
 
     console.log("=== handleContinue Debug ===");
-    console.log("selectedFilters:", JSON.stringify(selectedFilters, null, 2));
+    console.log("workingFilters:", JSON.stringify(workingFilters, null, 2));
     console.log("defaultQueries calculated:", defaultQueries);
     console.log("===========================");
 
@@ -184,7 +195,7 @@ export default function ManageProof() {
 
     Object.entries(verificationQueries).forEach(([categoryKey, attributes]) => {
       const allOptionsInCategory = Object.keys(attributes);
-      const selectedInCategory = selectedFilters[categoryKey] || [];
+      const selectedInCategory = workingFilters[categoryKey] || [];
       const isAllSelectedInCategory = selectedInCategory.length === allOptionsInCategory.length && selectedInCategory.length > 0;
 
       Object.entries(attributes).forEach(([attribute, data]) => {
@@ -224,6 +235,56 @@ export default function ManageProof() {
         </div>
       </div>
 
+      {/* Data Set Selector - Show when there are saved data sets */}
+      {dataSets && dataSets.length > 0 && (
+        <div className="bg-[#1a1a24] rounded-xl p-6 border border-[#2a2a36] mb-6">
+          <div className="flex items-center gap-3 mb-4">
+            <Database className="w-5 h-5 text-white" />
+            <h2 className="text-lg font-semibold text-white">Select Data Set</h2>
+          </div>
+          <p className="text-gray-400 text-sm mb-4">
+            Choose which data set to work with for verification.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {dataSets.map((ds) => {
+              const isActive = activeDataSetId === ds.id;
+              return (
+                <div
+                  key={ds.id}
+                  onClick={() => {
+                    setActiveDataSetId(ds.id);
+                    // Reset source when switching data sets
+                    setSelectedSource(null);
+                    setSelectedQueries([]);
+                  }}
+                  className={`relative p-4 rounded-lg border cursor-pointer transition-all ${
+                    isActive
+                      ? "bg-[#2a2a36] border-purple-500"
+                      : "bg-[#0f0f13] border-[#2a2a36] hover:border-[#3a3a46]"
+                  }`}
+                >
+                  {isActive && (
+                    <div className="absolute top-3 right-3">
+                      <div className="w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center">
+                        <Check className="w-3 h-3 text-white" />
+                      </div>
+                    </div>
+                  )}
+                  <h3 className="text-white font-medium mb-1 pr-6">{ds.name}</h3>
+                  <p className="text-gray-500 text-xs mb-2">
+                    {new Date(ds.createdAt).toLocaleDateString()}
+                  </p>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-400">{ds.totalRecords.toLocaleString()} records</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Empty State - No Dataset */}
       {!hasDataset && (
         <div className="flex flex-col items-center justify-center py-32">
@@ -243,8 +304,21 @@ export default function ManageProof() {
         </div>
       )}
 
-      {/* Verification Flow */}
-      {hasDataset && (
+      {/* No Data Set Selected - Show when there are data sets but none selected */}
+      {dataSets && dataSets.length > 0 && !activeDataSetId && !loadedData && (
+        <div className="flex flex-col items-center justify-center py-16">
+          <div className="w-16 h-16 bg-[#1a1a24] rounded-full flex items-center justify-center mb-6">
+            <Database className="w-8 h-8 text-gray-500" />
+          </div>
+          <h2 className="text-xl font-semibold text-white mb-2">Select a Data Set</h2>
+          <p className="text-gray-400 text-center mb-6 max-w-md">
+            Please select a data set above to continue with verification.
+          </p>
+        </div>
+      )}
+
+      {/* Verification Flow - Show when we have working data (either from active data set or loaded data) */}
+      {workingData && workingData.length > 0 && (
         <div className="space-y-6">
           {/* Step 1: Select Verification Source */}
           <div className="flex items-center gap-3 mb-6">
