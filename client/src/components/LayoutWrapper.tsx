@@ -13,6 +13,12 @@ export default function LayoutWrapper({
   // Hide sidebar for verification pages (panelist-facing)
   const isVerifyPage = pathname.startsWith("/verify");
 
+  // Hide sidebar for landing page
+  const isLandingPage = pathname === "/";
+
+  // Hide sidebar for auth pages
+  const isAuthPage = pathname === "/signup" || pathname === "/signin" || pathname === "/onboarding";
+
   if (isVerifyPage) {
     // Standalone layout for verification pages - no sidebar
     return (
@@ -20,6 +26,16 @@ export default function LayoutWrapper({
         {children}
       </div>
     );
+  }
+
+  if (isAuthPage) {
+    // Auth pages with dark background - no sidebar
+    return <>{children}</>;
+  }
+
+  if (isLandingPage) {
+    // Landing page - no sidebar, full width
+    return <>{children}</>;
   }
 
   // Default layout with sidebar for admin pages

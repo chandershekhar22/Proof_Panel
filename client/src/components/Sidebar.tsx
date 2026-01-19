@@ -15,7 +15,7 @@ import {
 import { useAppContext } from "@/context/AppContext";
 
 const mainNavItems = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard },
+  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Manage Proof", href: "/manage-proof", icon: CheckCircle },
   { name: "Verified Panelists", href: "/verified-panelists", icon: UserCheck },
   { name: "Settings", href: "/settings", icon: Settings },
@@ -33,7 +33,7 @@ export default function Sidebar() {
 
   const handleEndSession = () => {
     resetAll();
-    router.push("/");
+    router.push("/"); // Redirects to landing page
   };
 
   return (
