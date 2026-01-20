@@ -65,7 +65,7 @@ export default function LandingPage() {
                 Sign Up
               </Link>
               <Link
-                href="/signup"
+                href="/dashboard"
                 className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-medium transition-colors"
               >
                 Join Panel
