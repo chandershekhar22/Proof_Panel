@@ -21,8 +21,7 @@ export default function SigninPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // For now, just redirect to dashboard
-    // In future, implement actual signin logic
+    // Redirect to admin dashboard
     router.push("/dashboard");
   };
 

@@ -7,7 +7,6 @@ import {
   Briefcase,
   Shield,
   LayoutDashboard,
-  DollarSign,
   Info,
   ChevronRight,
   ChevronLeft,
@@ -16,45 +15,9 @@ import {
 } from "lucide-react";
 
 const steps = [
-  { id: 1, name: "Basic Info", icon: User },
-  { id: 2, name: "Employment", icon: Briefcase },
-  { id: 3, name: "Verification", icon: Shield },
-  { id: 4, name: "Dashboard", icon: LayoutDashboard },
-];
-
-const ageRanges = [
-  "18-24",
-  "25-34",
-  "35-44",
-  "45-54",
-  "55-64",
-  "65+",
-];
-
-const genders = ["Male", "Female", "Non-binary", "Prefer not to say"];
-
-const states = [
-  "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado",
-  "Connecticut", "Delaware", "Florida", "Georgia", "Hawaii", "Idaho",
-  "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana",
-  "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota",
-  "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada",
-  "New Hampshire", "New Jersey", "New Mexico", "New York",
-  "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon",
-  "Pennsylvania", "Rhode Island", "South Carolina", "South Dakota",
-  "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington",
-  "West Virginia", "Wisconsin", "Wyoming",
-];
-
-const incomeRanges = [
-  "Under $25,000",
-  "$25,000 - $49,999",
-  "$50,000 - $74,999",
-  "$75,000 - $99,999",
-  "$100,000 - $149,999",
-  "$150,000 - $199,999",
-  "$200,000+",
-  "Prefer not to say",
+  { id: 1, name: "Employment", icon: Briefcase },
+  { id: 2, name: "Verification", icon: Shield },
+  { id: 3, name: "Dashboard", icon: LayoutDashboard },
 ];
 
 const employmentStatuses = [
@@ -104,21 +67,27 @@ const companySizes = [
   "5000+ employees",
 ];
 
+const yearsOfExperience = [
+  "Less than 1 year",
+  "1-2 years",
+  "3-5 years",
+  "6-10 years",
+  "11-15 years",
+  "16-20 years",
+  "20+ years",
+];
+
 export default function OnboardingPage() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
-    // Basic Info
-    ageRange: "",
-    gender: "",
-    state: "",
-    householdIncome: "",
     // Employment
     employmentStatus: "",
     industry: "",
     jobFunction: "",
     companySize: "",
     jobTitle: "",
+    yearsOfExperience: "",
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
@@ -129,11 +98,11 @@ export default function OnboardingPage() {
   };
 
   const handleNext = () => {
-    if (currentStep < 4) {
+    if (currentStep < 3) {
       setCurrentStep(currentStep + 1);
     } else {
-      // Final step - go to dashboard
-      router.push("/dashboard");
+      // Final step - go to member dashboard
+      router.push("/member/dashboard");
     }
   };
 
@@ -251,70 +220,8 @@ export default function OnboardingPage() {
       {/* Main Content */}
       <main className="flex-1 p-8 overflow-auto">
         <div className="max-w-2xl mx-auto">
-          {/* Step 1: Basic Info */}
+          {/* Step 1: Employment */}
           {currentStep === 1 && (
-            <>
-              <div className="mb-8">
-                <h1 className="text-3xl font-bold text-white mb-2">Basic Information</h1>
-                <p className="text-gray-400">Tell us about yourself to match you with relevant surveys</p>
-              </div>
-
-              {/* Demographics Section */}
-              <div className="bg-[#12121a] border border-[#1a1a24] rounded-xl p-6 mb-6">
-                <div className="flex items-center gap-2 mb-6">
-                  <User className="w-5 h-5 text-emerald-400" />
-                  <h2 className="text-lg font-semibold text-white">Demographics</h2>
-                </div>
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <SelectField
-                    label="Age Range"
-                    name="ageRange"
-                    value={formData.ageRange}
-                    options={ageRanges}
-                    placeholder="Select age range"
-                  />
-                  <SelectField
-                    label="Gender"
-                    name="gender"
-                    value={formData.gender}
-                    options={genders}
-                    placeholder="Select gender"
-                  />
-                </div>
-                <SelectField
-                  label="Location (State)"
-                  name="state"
-                  value={formData.state}
-                  options={states}
-                  placeholder="Select state"
-                />
-              </div>
-
-              {/* Household Income Section */}
-              <div className="bg-[#12121a] border border-[#1a1a24] rounded-xl p-6">
-                <div className="flex items-center gap-2 mb-6">
-                  <DollarSign className="w-5 h-5 text-emerald-400" />
-                  <h2 className="text-lg font-semibold text-white">Household Income</h2>
-                </div>
-                <SelectField
-                  label="Annual Household Income (HHI)"
-                  name="householdIncome"
-                  value={formData.householdIncome}
-                  options={incomeRanges}
-                  placeholder="Select income range"
-                />
-                <div className="flex items-start gap-2 mt-4 p-3 bg-[#1a1a24] rounded-lg">
-                  <Info className="w-4 h-4 text-gray-500 mt-0.5 flex-shrink-0" />
-                  <p className="text-gray-500 text-sm">
-                    HHI is stored as a categorical range, not an exact amount. This qualifies you for consumer research studies without revealing your precise income.
-                  </p>
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* Step 2: Employment */}
-          {currentStep === 2 && (
             <>
               <div className="mb-8">
                 <h1 className="text-3xl font-bold text-white mb-2">Employment Details</h1>
@@ -377,13 +284,20 @@ export default function OnboardingPage() {
                     options={companySizes}
                     placeholder="Select company size"
                   />
+                  <SelectField
+                    label="Years of Experience"
+                    name="yearsOfExperience"
+                    value={formData.yearsOfExperience}
+                    options={yearsOfExperience}
+                    placeholder="Select years of experience"
+                  />
                 </div>
               </div>
             </>
           )}
 
-          {/* Step 3: Verification */}
-          {currentStep === 3 && (
+          {/* Step 2: Verification */}
+          {currentStep === 2 && (
             <>
               <div className="mb-8">
                 <h1 className="text-3xl font-bold text-white mb-2">Verify Your Profile</h1>
@@ -444,8 +358,8 @@ export default function OnboardingPage() {
             </>
           )}
 
-          {/* Step 4: Dashboard Preview */}
-          {currentStep === 4 && (
+          {/* Step 3: Dashboard Preview */}
+          {currentStep === 3 && (
             <>
               <div className="mb-8">
                 <h1 className="text-3xl font-bold text-white mb-2">You&apos;re All Set!</h1>
@@ -459,18 +373,6 @@ export default function OnboardingPage() {
                 </div>
 
                 <div className="space-y-3">
-                  {formData.ageRange && (
-                    <div className="flex justify-between py-2 border-b border-[#2a2a36]">
-                      <span className="text-gray-400">Age Range</span>
-                      <span className="text-white">{formData.ageRange}</span>
-                    </div>
-                  )}
-                  {formData.state && (
-                    <div className="flex justify-between py-2 border-b border-[#2a2a36]">
-                      <span className="text-gray-400">Location</span>
-                      <span className="text-white">{formData.state}</span>
-                    </div>
-                  )}
                   {formData.employmentStatus && (
                     <div className="flex justify-between py-2 border-b border-[#2a2a36]">
                       <span className="text-gray-400">Employment</span>
@@ -484,9 +386,15 @@ export default function OnboardingPage() {
                     </div>
                   )}
                   {formData.jobFunction && (
-                    <div className="flex justify-between py-2">
+                    <div className="flex justify-between py-2 border-b border-[#2a2a36]">
                       <span className="text-gray-400">Job Function</span>
                       <span className="text-white">{formData.jobFunction}</span>
+                    </div>
+                  )}
+                  {formData.yearsOfExperience && (
+                    <div className="flex justify-between py-2">
+                      <span className="text-gray-400">Experience</span>
+                      <span className="text-white">{formData.yearsOfExperience}</span>
                     </div>
                   )}
                 </div>
@@ -523,7 +431,7 @@ export default function OnboardingPage() {
               onClick={handleNext}
               className="flex items-center gap-2 px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-medium transition-colors"
             >
-              {currentStep === 4 ? "Go to Dashboard" : "Continue"}
+              {currentStep === 3 ? "Go to Dashboard" : "Continue"}
               <ChevronRight className="w-5 h-5" />
             </button>
           </div>

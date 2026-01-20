@@ -19,6 +19,9 @@ export default function LayoutWrapper({
   // Hide sidebar for auth pages
   const isAuthPage = pathname === "/signup" || pathname === "/signin" || pathname === "/onboarding";
 
+  // Hide sidebar for member pages (they have their own sidebar)
+  const isMemberPage = pathname.startsWith("/member");
+
   if (isVerifyPage) {
     // Standalone layout for verification pages - no sidebar
     return (
@@ -30,6 +33,11 @@ export default function LayoutWrapper({
 
   if (isAuthPage) {
     // Auth pages with dark background - no sidebar
+    return <>{children}</>;
+  }
+
+  if (isMemberPage) {
+    // Member pages have their own sidebar
     return <>{children}</>;
   }
 

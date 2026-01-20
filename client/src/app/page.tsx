@@ -65,7 +65,7 @@ export default function LandingPage() {
                 Sign Up
               </Link>
               <Link
-                href="/dashboard"
+                href="/signup"
                 className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-medium transition-colors"
               >
                 Join Panel
@@ -99,7 +99,7 @@ export default function LandingPage() {
           {/* CTA Buttons */}
           <div className="flex items-center justify-center gap-4 flex-wrap">
             <Link
-              href="/dashboard"
+              href="/signup"
               className="inline-flex items-center gap-2 px-8 py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-semibold transition-colors text-lg"
             >
               Start Earning Today
@@ -199,7 +199,7 @@ export default function LandingPage() {
             Join thousands of verified professionals earning premium rewards for their insights.
           </p>
           <Link
-            href="/dashboard"
+            href="/signup"
             className="inline-flex items-center gap-2 px-8 py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-semibold transition-colors text-lg"
           >
             Get Started Now
