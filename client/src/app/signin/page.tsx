@@ -21,8 +21,8 @@ export default function SigninPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Redirect to admin dashboard
-    router.push("/dashboard");
+    // Redirect to member dashboard for panelists
+    router.push("/member/dashboard");
   };
 
   return (
