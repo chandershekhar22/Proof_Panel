@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   FileText,
@@ -14,6 +15,7 @@ import {
   ChevronRight,
   Clock,
   AlertCircle,
+  LogOut,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 
@@ -77,6 +79,11 @@ const availableSurveys = [
 
 export default function MemberDashboard() {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogout = () => {
+    router.push("/");
+  };
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] flex">
@@ -118,8 +125,19 @@ export default function MemberDashboard() {
           </ul>
         </nav>
 
+        {/* Logout Button */}
+        <div className="px-3 pb-2">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors"
+          >
+            <LogOut className="w-5 h-5" />
+            <span className="text-sm font-medium">Log Out</span>
+          </button>
+        </div>
+
         {/* Verified Profile Box */}
-        <div className="p-4">
+        <div className="p-4 border-t border-[#1a1a24]">
           <div className="bg-[#12121a] border border-[#1a1a24] rounded-xl p-4">
             <div className="flex items-center gap-2 mb-1">
               <CheckCircle className="w-4 h-4 text-emerald-400" />
