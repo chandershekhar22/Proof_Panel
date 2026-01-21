@@ -77,6 +77,90 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// ==================== LinkedIn OAuth Endpoints ====================
+
+// Get LinkedIn OAuth URL
+app.get('/api/auth/linkedin', (req, res) => {
+  const state = crypto.randomBytes(16).toString('hex');
+  const scope = 'openid profile email';
+
+  const authUrl = `https://www.linkedin.com/oauth/v2/authorization?` +
+    `response_type=code&` +
+    `client_id=${LINKEDIN_CLIENT_ID}&` +
+    `redirect_uri=${encodeURIComponent(LINKEDIN_REDIRECT_URI)}&` +
+    `state=${state}&` +
+    `scope=${encodeURIComponent(scope)}`;
+
+  res.json({ success: true, authUrl, state });
+});
+
+// Exchange LinkedIn auth code for tokens and get profile
+app.post('/api/auth/linkedin/callback', async (req, res) => {
+  const { code } = req.body;
+
+  if (!code) {
+    return res.status(400).json({ success: false, error: 'Authorization code is required' });
+  }
+
+  try {
+    // Exchange code for access token
+    const tokenResponse = await fetch('https://www.linkedin.com/oauth/v2/accessToken', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        code: code,
+        client_id: LINKEDIN_CLIENT_ID,
+        client_secret: LINKEDIN_CLIENT_SECRET,
+        redirect_uri: LINKEDIN_REDIRECT_URI,
+      }),
+    });
+
+    const tokenData = await tokenResponse.json();
+
+    if (tokenData.error) {
+      console.error('LinkedIn token error:', tokenData);
+      return res.status(400).json({ success: false, error: tokenData.error_description || 'Failed to get access token' });
+    }
+
+    const accessToken = tokenData.access_token;
+
+    // Fetch user profile using the access token
+    const profileResponse = await fetch('https://api.linkedin.com/v2/userinfo', {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    });
+
+    const profileData = await profileResponse.json();
+
+    if (profileData.error) {
+      console.error('LinkedIn profile error:', profileData);
+      return res.status(400).json({ success: false, error: 'Failed to fetch profile' });
+    }
+
+    // Return the profile data
+    res.json({
+      success: true,
+      profile: {
+        id: profileData.sub,
+        name: profileData.name,
+        email: profileData.email,
+        picture: profileData.picture,
+        emailVerified: profileData.email_verified,
+      },
+    });
+
+  } catch (error) {
+    console.error('LinkedIn OAuth error:', error);
+    res.status(500).json({ success: false, error: 'OAuth process failed' });
+  }
+});
+
+// ==================== End LinkedIn OAuth ====================
+
 // Get respondent attributes by hashId
 app.get('/api/respondent/:hashId', (req, res) => {
   const { hashId } = req.params;

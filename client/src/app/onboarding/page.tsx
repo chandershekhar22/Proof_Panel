@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   User,
   Briefcase,
@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   Layers,
   CheckCircle,
+  Loader2,
 } from "lucide-react";
 
 const steps = [
@@ -77,9 +78,15 @@ const yearsOfExperience = [
   "20+ years",
 ];
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002";
+
 export default function OnboardingPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [currentStep, setCurrentStep] = useState(1);
+  const [linkedinConnected, setLinkedinConnected] = useState(false);
+  const [githubConnected, setGithubConnected] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
   const [formData, setFormData] = useState({
     // Employment
     employmentStatus: "",
@@ -90,11 +97,62 @@ export default function OnboardingPage() {
     yearsOfExperience: "",
   });
 
+  // Check for LinkedIn callback result
+  useEffect(() => {
+    const linkedinResult = searchParams.get("linkedin");
+
+    if (linkedinResult === "success") {
+      setLinkedinConnected(true);
+      setCurrentStep(3); // Move to dashboard step
+
+      // Get profile from sessionStorage if available
+      const profileData = sessionStorage.getItem("linkedinProfile");
+      if (profileData) {
+        console.log("LinkedIn profile:", JSON.parse(profileData));
+        sessionStorage.removeItem("linkedinProfile");
+      }
+
+      // Clean up URL
+      router.replace("/onboarding");
+    } else if (linkedinResult === "error") {
+      // Handle error - stay on verification step
+      setCurrentStep(2);
+      router.replace("/onboarding");
+    }
+  }, [searchParams, router]);
+
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
     });
+  };
+
+  const handleLinkedInConnect = async () => {
+    try {
+      // Set flag to indicate onboarding flow
+      sessionStorage.setItem("linkedinOnboarding", "true");
+
+      // Get LinkedIn OAuth URL from server
+      const response = await fetch(`${API_URL}/api/auth/linkedin`);
+      const data = await response.json();
+
+      if (data.success && data.authUrl) {
+        // Redirect to LinkedIn OAuth
+        window.location.href = data.authUrl;
+      } else {
+        console.error("Failed to get LinkedIn auth URL");
+        sessionStorage.removeItem("linkedinOnboarding");
+      }
+    } catch (error) {
+      console.error("LinkedIn connect error:", error);
+      sessionStorage.removeItem("linkedinOnboarding");
+    }
+  };
+
+  const handleGitHubConnect = () => {
+    // GitHub OAuth - Coming soon
+    alert("GitHub verification coming soon!");
   };
 
   const handleNext = () => {
@@ -299,6 +357,21 @@ export default function OnboardingPage() {
           {/* Step 2: Verification */}
           {currentStep === 2 && (
             <>
+              {/* Verifying Overlay */}
+              {isVerifying && (
+                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+                  <div className="bg-[#12121a] border border-[#1a1a24] rounded-2xl p-8 text-center max-w-sm mx-4">
+                    <div className="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
+                    </div>
+                    <h3 className="text-xl font-semibold text-white mb-2">Verifying Your Profile</h3>
+                    <p className="text-gray-400 text-sm">
+                      Please wait while we verify your credentials...
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div className="mb-8">
                 <h1 className="text-3xl font-bold text-white mb-2">Verify Your Profile</h1>
                 <p className="text-gray-400">Connect your professional accounts for higher earnings</p>
@@ -324,9 +397,20 @@ export default function OnboardingPage() {
                         <p className="text-gray-500 text-sm">Verify your professional profile</p>
                       </div>
                     </div>
-                    <button className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
-                      Connect
-                    </button>
+                    {linkedinConnected ? (
+                      <span className="flex items-center gap-2 px-4 py-2 bg-emerald-500/20 text-emerald-400 rounded-lg text-sm font-medium">
+                        <CheckCircle className="w-4 h-4" />
+                        Connected
+                      </span>
+                    ) : (
+                      <button
+                        onClick={handleLinkedInConnect}
+                        disabled={isVerifying}
+                        className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                      >
+                        Connect
+                      </button>
+                    )}
                   </div>
 
                   {/* GitHub Verification */}
@@ -342,9 +426,9 @@ export default function OnboardingPage() {
                         <p className="text-gray-500 text-sm">Verify your developer profile</p>
                       </div>
                     </div>
-                    <button className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg text-sm font-medium transition-colors">
-                      Connect
-                    </button>
+                    <span className="px-4 py-2 bg-gray-700/50 text-gray-500 rounded-lg text-sm font-medium cursor-not-allowed">
+                      Coming Soon
+                    </span>
                   </div>
                 </div>
 
