@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-  User,
   Briefcase,
   Shield,
   LayoutDashboard,
@@ -13,69 +12,63 @@ import {
   Layers,
   CheckCircle,
   Loader2,
+  Monitor,
+  Car,
+  Building2,
+  Stethoscope,
+  GraduationCap,
+  Grid3X3,
 } from "lucide-react";
 
 const steps = [
-  { id: 1, name: "Employment", icon: Briefcase },
+  { id: 1, name: "Categories", icon: Grid3X3 },
   { id: 2, name: "Verification", icon: Shield },
   { id: 3, name: "Dashboard", icon: LayoutDashboard },
 ];
 
-const employmentStatuses = [
-  "Employed Full-time",
-  "Employed Part-time",
-  "Self-employed",
-  "Unemployed",
-  "Student",
-  "Retired",
-  "Homemaker",
-];
-
-const industries = [
-  "Technology",
-  "Healthcare",
-  "Finance & Banking",
-  "Education",
-  "Manufacturing",
-  "Retail",
-  "Government",
-  "Non-profit",
-  "Media & Entertainment",
-  "Real Estate",
-  "Other",
-];
-
-const jobFunctions = [
-  "Executive/C-Suite",
-  "IT Decision Maker",
-  "Marketing",
-  "Sales",
-  "Operations",
-  "Human Resources",
-  "Finance",
-  "Engineering",
-  "Research & Development",
-  "Other",
-];
-
-const companySizes = [
-  "1-10 employees",
-  "11-50 employees",
-  "51-200 employees",
-  "201-500 employees",
-  "501-1000 employees",
-  "1001-5000 employees",
-  "5000+ employees",
-];
-
-const yearsOfExperience = [
-  "Less than 1 year",
-  "1-2 years",
-  "3-5 years",
-  "6-10 years",
-  "11-15 years",
-  "16-20 years",
-  "20+ years",
+const profileCategories = [
+  {
+    id: "b2b",
+    title: "B2B Professional",
+    description: "Decision makers, executives, and business professionals",
+    icon: Briefcase,
+    color: "bg-blue-500",
+  },
+  {
+    id: "developer",
+    title: "Developer & Tech",
+    description: "Software developers, engineers, and tech professionals",
+    icon: Monitor,
+    color: "bg-emerald-500",
+  },
+  {
+    id: "automotive",
+    title: "Automotive Ownership",
+    description: "Vehicle owners and automotive enthusiasts",
+    icon: Car,
+    color: "bg-orange-500",
+  },
+  {
+    id: "asset",
+    title: "Asset Ownership",
+    description: "Property owners, investors, and asset holders",
+    icon: Building2,
+    color: "bg-blue-500",
+  },
+  {
+    id: "healthcare",
+    title: "Healthcare Professional",
+    description: "Doctors, nurses, and medical practitioners",
+    icon: Stethoscope,
+    color: "bg-pink-500",
+  },
+  {
+    id: "education",
+    title: "Education Professional",
+    description: "Teachers, professors, and education administrators",
+    icon: GraduationCap,
+    color: "bg-amber-500",
+  },
 ];
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002";
@@ -87,15 +80,7 @@ export default function OnboardingPage() {
   const [linkedinConnected, setLinkedinConnected] = useState(false);
   const [githubConnected, setGithubConnected] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
-  const [formData, setFormData] = useState({
-    // Employment
-    employmentStatus: "",
-    industry: "",
-    jobFunction: "",
-    companySize: "",
-    jobTitle: "",
-    yearsOfExperience: "",
-  });
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
   // Check for LinkedIn callback result
   useEffect(() => {
@@ -121,11 +106,12 @@ export default function OnboardingPage() {
     }
   }, [searchParams, router]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+  const toggleCategory = (categoryId: string) => {
+    setSelectedCategories((prev) =>
+      prev.includes(categoryId)
+        ? prev.filter((id) => id !== categoryId)
+        : [...prev, categoryId]
+    );
   };
 
   const handleLinkedInConnect = async () => {
@@ -170,38 +156,6 @@ export default function OnboardingPage() {
     }
   };
 
-  const SelectField = ({
-    label,
-    name,
-    value,
-    options,
-    placeholder,
-  }: {
-    label: string;
-    name: string;
-    value: string;
-    options: string[];
-    placeholder: string;
-  }) => (
-    <div>
-      <label className="block text-sm font-medium text-gray-400 mb-2">
-        {label}
-      </label>
-      <select
-        name={name}
-        value={value}
-        onChange={handleChange}
-        className="w-full px-4 py-3 bg-[#1a1a24] border border-[#2a2a36] rounded-lg text-white focus:outline-none focus:border-emerald-500 transition-colors appearance-none cursor-pointer"
-      >
-        <option value="" className="text-gray-500">{placeholder}</option>
-        {options.map((option) => (
-          <option key={option} value={option} className="text-white bg-[#1a1a24]">
-            {option}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] flex">
@@ -278,79 +232,62 @@ export default function OnboardingPage() {
       {/* Main Content */}
       <main className="flex-1 p-8 overflow-auto">
         <div className="max-w-2xl mx-auto">
-          {/* Step 1: Employment */}
+          {/* Step 1: Profile Categories */}
           {currentStep === 1 && (
             <>
               <div className="mb-8">
-                <h1 className="text-3xl font-bold text-white mb-2">Employment Details</h1>
-                <p className="text-gray-400">Help us understand your professional background</p>
+                <h1 className="text-3xl font-bold text-white mb-2">Select Your Profile Categories</h1>
+                <p className="text-gray-400">Choose categories that match your background to unlock relevant survey opportunities</p>
               </div>
 
-              {/* Employment Status Section */}
-              <div className="bg-[#12121a] border border-[#1a1a24] rounded-xl p-6 mb-6">
-                <div className="flex items-center gap-2 mb-6">
-                  <Briefcase className="w-5 h-5 text-emerald-400" />
-                  <h2 className="text-lg font-semibold text-white">Employment Status</h2>
-                </div>
-                <SelectField
-                  label="Current Employment Status"
-                  name="employmentStatus"
-                  value={formData.employmentStatus}
-                  options={employmentStatuses}
-                  placeholder="Select employment status"
-                />
+              {/* Category Selection Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {profileCategories.map((category) => {
+                  const isSelected = selectedCategories.includes(category.id);
+                  const IconComponent = category.icon;
+                  return (
+                    <button
+                      key={category.id}
+                      onClick={() => toggleCategory(category.id)}
+                      className={`flex items-center justify-between p-4 rounded-xl border transition-all text-left ${
+                        isSelected
+                          ? "bg-[#12121a] border-emerald-500/50"
+                          : "bg-[#12121a] border-[#1a1a24] hover:border-[#2a2a36]"
+                      }`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={`w-12 h-12 ${category.color} rounded-lg flex items-center justify-center`}>
+                          <IconComponent className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <p className="text-white font-semibold">{category.title}</p>
+                          <p className="text-gray-500 text-sm">{category.description}</p>
+                        </div>
+                      </div>
+                      <div
+                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                          isSelected
+                            ? "border-emerald-500 bg-emerald-500"
+                            : "border-gray-600"
+                        }`}
+                      >
+                        {isSelected && (
+                          <CheckCircle className="w-3 h-3 text-white" />
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
 
-              {/* Professional Details Section */}
-              <div className="bg-[#12121a] border border-[#1a1a24] rounded-xl p-6">
-                <div className="flex items-center gap-2 mb-6">
-                  <User className="w-5 h-5 text-emerald-400" />
-                  <h2 className="text-lg font-semibold text-white">Professional Details</h2>
+              {selectedCategories.length > 0 && (
+                <div className="flex items-start gap-2 mt-6 p-3 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
+                  <Info className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
+                  <p className="text-emerald-400 text-sm">
+                    {selectedCategories.length} {selectedCategories.length === 1 ? "category" : "categories"} selected. You can select multiple categories to unlock more survey opportunities.
+                  </p>
                 </div>
-                <div className="space-y-4">
-                  <SelectField
-                    label="Industry"
-                    name="industry"
-                    value={formData.industry}
-                    options={industries}
-                    placeholder="Select industry"
-                  />
-                  <SelectField
-                    label="Job Function"
-                    name="jobFunction"
-                    value={formData.jobFunction}
-                    options={jobFunctions}
-                    placeholder="Select job function"
-                  />
-                  <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-2">
-                      Job Title
-                    </label>
-                    <input
-                      type="text"
-                      name="jobTitle"
-                      value={formData.jobTitle}
-                      onChange={handleChange}
-                      placeholder="e.g. Software Engineer"
-                      className="w-full px-4 py-3 bg-[#1a1a24] border border-[#2a2a36] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 transition-colors"
-                    />
-                  </div>
-                  <SelectField
-                    label="Company Size"
-                    name="companySize"
-                    value={formData.companySize}
-                    options={companySizes}
-                    placeholder="Select company size"
-                  />
-                  <SelectField
-                    label="Years of Experience"
-                    name="yearsOfExperience"
-                    value={formData.yearsOfExperience}
-                    options={yearsOfExperience}
-                    placeholder="Select years of experience"
-                  />
-                </div>
-              </div>
+              )}
             </>
           )}
 
@@ -457,37 +394,38 @@ export default function OnboardingPage() {
                 </div>
 
                 <div className="space-y-3">
-                  {formData.employmentStatus && (
-                    <div className="flex justify-between py-2 border-b border-[#2a2a36]">
-                      <span className="text-gray-400">Employment</span>
-                      <span className="text-white">{formData.employmentStatus}</span>
-                    </div>
-                  )}
-                  {formData.industry && (
-                    <div className="flex justify-between py-2 border-b border-[#2a2a36]">
-                      <span className="text-gray-400">Industry</span>
-                      <span className="text-white">{formData.industry}</span>
-                    </div>
-                  )}
-                  {formData.jobFunction && (
-                    <div className="flex justify-between py-2 border-b border-[#2a2a36]">
-                      <span className="text-gray-400">Job Function</span>
-                      <span className="text-white">{formData.jobFunction}</span>
-                    </div>
-                  )}
-                  {formData.yearsOfExperience && (
-                    <div className="flex justify-between py-2">
-                      <span className="text-gray-400">Experience</span>
-                      <span className="text-white">{formData.yearsOfExperience}</span>
-                    </div>
-                  )}
+                  <div className="py-2">
+                    <span className="text-gray-400 block mb-3">Selected Categories</span>
+                    {selectedCategories.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {selectedCategories.map((catId) => {
+                          const category = profileCategories.find((c) => c.id === catId);
+                          if (!category) return null;
+                          const IconComponent = category.icon;
+                          return (
+                            <div
+                              key={catId}
+                              className="flex items-center gap-2 px-3 py-2 bg-[#1a1a24] rounded-lg border border-[#2a2a36]"
+                            >
+                              <div className={`w-6 h-6 ${category.color} rounded flex items-center justify-center`}>
+                                <IconComponent className="w-3 h-3 text-white" />
+                              </div>
+                              <span className="text-white text-sm">{category.title}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <span className="text-gray-500 text-sm">No categories selected</span>
+                    )}
+                  </div>
                 </div>
               </div>
 
               <div className="bg-gradient-to-r from-emerald-500/20 to-blue-500/20 border border-emerald-500/30 rounded-xl p-6">
                 <h3 className="text-white font-semibold mb-2">Ready to Start Earning?</h3>
                 <p className="text-gray-400 text-sm mb-4">
-                  Based on your profile, you qualify for premium B2B surveys with higher payouts.
+                  Based on your profile, you qualify for premium surveys with higher payouts.
                 </p>
                 <div className="flex items-center gap-2 text-emerald-400 text-sm">
                   <CheckCircle className="w-4 h-4" />
