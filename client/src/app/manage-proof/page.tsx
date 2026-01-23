@@ -386,7 +386,7 @@ export default function ManageProof() {
           {/* Step 2: Select Verification Queries */}
           {selectedSource === "linkedin-step2" && (
             <>
-              <div className="flex items-center justify-between mt-8">
+              <div className="flex items-center justify-between mt-8 mb-4">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-full bg-[#1a1a24] border border-[#2a2a36] flex items-center justify-center">
                     <Maximize2 className="w-4 h-4 text-gray-400" />
@@ -396,86 +396,139 @@ export default function ManageProof() {
                 <span className="text-purple-400 text-sm">{selectedQueries.length} selected</span>
               </div>
 
-              {/* Show ALL queries grouped by category */}
-              <div className="space-y-6 mt-6">
-                {/* Group queries by category */}
+              {/* Queries List grouped by category */}
+              <div className="bg-[#1a1a24] rounded-xl border border-[#2a2a36] overflow-hidden">
+                {/* Header with Select All */}
+                <div className="flex items-center justify-between px-6 py-4 border-b border-[#2a2a36] bg-[#0f0f13]">
+                  <span className="text-gray-400 text-sm">Verification Queries</span>
+                  <div
+                    onClick={() => {
+                      const allKeys = allQueries.map(q => q.key);
+                      if (selectedQueries.length === allQueries.length) {
+                        setSelectedQueries([]);
+                      } else {
+                        setSelectedQueries(allKeys);
+                      }
+                    }}
+                    className="flex items-center gap-3 cursor-pointer transition-colors"
+                  >
+                    <span className="text-white text-sm font-medium">Select All</span>
+                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                      selectedQueries.length === allQueries.length
+                        ? "bg-purple-600 border-purple-600"
+                        : selectedQueries.length > 0
+                          ? "bg-purple-600/50 border-purple-600"
+                          : "border-gray-500"
+                    }`}>
+                      {selectedQueries.length === allQueries.length && <Check className="w-3 h-3 text-white" />}
+                      {selectedQueries.length > 0 && selectedQueries.length < allQueries.length && (
+                        <div className="w-2 h-0.5 bg-white"></div>
+                      )}
+                    </div>
+                  </div>
+                </div>
                 {Object.entries(
                   allQueries.reduce((acc, query) => {
                     if (!acc[query.categoryKey]) acc[query.categoryKey] = [];
                     acc[query.categoryKey].push(query);
                     return acc;
                   }, {} as Record<string, typeof allQueries>)
-                ).map(([categoryKey, queries]) => (
-                  <div key={categoryKey} className="bg-[#1a1a24] rounded-xl p-6 border border-[#2a2a36]">
-                    <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">
-                      {categoryNames[categoryKey]}
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                      {queries.map((queryItem) => {
+                ).map(([categoryKey, queries], categoryIndex, categoryArray) => {
+                  const categorySelectedCount = queries.filter(q => selectedQueries.includes(q.key)).length;
+                  const allCategorySelected = categorySelectedCount === queries.length;
+
+                  return (
+                    <div key={categoryKey}>
+                      {/* Category Header with Select All for Category */}
+                      <div
+                        onClick={() => {
+                          const categoryKeys = queries.map(q => q.key);
+                          if (allCategorySelected) {
+                            setSelectedQueries(selectedQueries.filter(k => !categoryKeys.includes(k)));
+                          } else {
+                            const newSelected = [...selectedQueries];
+                            categoryKeys.forEach(k => {
+                              if (!newSelected.includes(k)) newSelected.push(k);
+                            });
+                            setSelectedQueries(newSelected);
+                          }
+                        }}
+                        className="flex items-center gap-4 px-6 py-4 bg-[#0f0f13] border-b border-[#2a2a36] cursor-pointer hover:bg-[#1a1a24] transition-colors"
+                      >
+                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                          allCategorySelected
+                            ? "bg-purple-600 border-purple-600"
+                            : categorySelectedCount > 0
+                              ? "bg-purple-600/50 border-purple-600"
+                              : "border-gray-500"
+                        }`}>
+                          {allCategorySelected && <Check className="w-3 h-3 text-white" />}
+                          {categorySelectedCount > 0 && !allCategorySelected && (
+                            <div className="w-2 h-0.5 bg-white"></div>
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <span className="text-sm font-semibold text-cyan-400 uppercase tracking-wider">
+                            {categoryNames[categoryKey]}
+                          </span>
+                          <span className="text-gray-500 text-sm ml-2">
+                            ({categorySelectedCount}/{queries.length})
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Query Items */}
+                      {queries.map((queryItem, queryIndex) => {
                         const isSelected = selectedQueries.includes(queryItem.key);
+                        const isLastInCategory = queryIndex === queries.length - 1;
+                        const isLastCategory = categoryIndex === categoryArray.length - 1;
 
                         return (
                           <div
                             key={queryItem.key}
                             onClick={() => toggleQuery(queryItem.key)}
-                            className={`relative p-4 rounded-lg border cursor-pointer transition-all ${
-                              isSelected
-                                ? "bg-[#2a2a36] border-purple-500"
-                                : "bg-[#0f0f13] border-[#2a2a36] hover:border-[#3a3a46]"
-                            }`}
+                            className={`flex items-center gap-6 px-6 py-3 cursor-pointer transition-colors hover:bg-[#0f0f13] ${!isLastInCategory || !isLastCategory ? "border-b border-[#2a2a36]" : ""}`}
                           >
-                            {/* Filter indicator badge */}
-                            {queryItem.isFromFilter && (
-                              <div className="absolute top-3 left-3">
-                                <span className="px-1.5 py-0.5 bg-green-500/20 text-green-400 text-[10px] font-medium rounded">
-                                  FILTER
-                                </span>
-                              </div>
-                            )}
-
                             {/* Checkbox */}
-                            <div className="absolute top-3 right-3">
-                              <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-                                isSelected
-                                  ? "bg-purple-600 border-purple-600"
-                                  : "border-gray-500"
-                              }`}>
-                                {isSelected && <Check className="w-3 h-3 text-white" />}
-                              </div>
+                            <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0 ${
+                              isSelected
+                                ? "bg-purple-600 border-purple-600"
+                                : "border-gray-500"
+                            }`}>
+                              {isSelected && <Check className="w-3 h-3 text-white" />}
                             </div>
 
-                            {/* Category Badge */}
-                            <span className={`inline-block px-2 py-1 rounded text-xs font-medium text-white mb-2 ${queryItem.isFromFilter ? "mt-5" : ""} ${queryItem.color}`}>
-                              {queryItem.category}
-                            </span>
-
                             {/* Attribute Name */}
-                            <h4 className="text-white font-medium mb-2 pr-6">{queryItem.attribute}</h4>
+                            <span className="text-white flex-shrink-0 w-48">{queryItem.attribute}</span>
 
-                            {/* Query (Verifier Sees) */}
-                            <p className="text-gray-400 text-sm font-mono">{queryItem.query}</p>
+                            {/* Query */}
+                            <span className="text-gray-400 text-sm font-mono flex-1">{queryItem.query}</span>
+
+                            {/* Filter indicator - subtle text */}
+                            {queryItem.isFromFilter && (
+                              <span className="text-purple-400 text-xs flex-shrink-0">from filter</span>
+                            )}
                           </div>
                         );
                       })}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Run Verification Button */}
-              {selectedQueries.length > 0 && (
-                <div className="flex justify-end mt-6">
-                  <button
-                    onClick={() => router.push("/verification-dashboard")}
-                    className="bg-purple-600 hover:bg-purple-700 text-white font-medium px-6 py-3 rounded-lg transition-colors flex items-center gap-2"
-                  >
-                    Run Verification ({selectedQueries.length} queries)
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                  </button>
-                </div>
-              )}
+              <div className="flex justify-end mt-6">
+                <button
+                  onClick={() => router.push("/verification-dashboard")}
+                  disabled={selectedQueries.length === 0}
+                  className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium px-6 py-3 rounded-lg transition-colors flex items-center gap-2"
+                >
+                  Run Verification ({selectedQueries.length} queries)
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </button>
+              </div>
             </>
           )}
         </div>
