@@ -145,8 +145,14 @@ export default function OnboardingPage() {
     if (currentStep < 3) {
       setCurrentStep(currentStep + 1);
     } else {
-      // Final step - go to member dashboard
-      router.push("/member/dashboard");
+      // Final step - redirect based on user role
+      const userRole = sessionStorage.getItem("userRole");
+      if (userRole === "insight_company") {
+        router.push("/insight/dashboard");
+      } else {
+        // Default to member dashboard for panelists
+        router.push("/member/dashboard");
+      }
     }
   };
 

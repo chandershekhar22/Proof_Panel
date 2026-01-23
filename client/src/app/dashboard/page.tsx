@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { FileText, Filter, Check, Download, ChevronDown, Table, CheckCircle, Loader2, Link2, Plus, Trash2, Database } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAppContext, Respondent } from "@/context/AppContext";
 
 // Data endpoints
@@ -182,6 +183,7 @@ function FilterDropdown({
 }
 
 export default function Dashboard() {
+  const router = useRouter();
   const {
     apiBaseUrl,
     isConnected,
@@ -311,6 +313,11 @@ export default function Dashboard() {
       }
     });
     return parts.length > 0 ? parts.join(", ") : "No filters";
+  };
+
+  // Navigate to dataset view page
+  const handleViewDataSet = (dataSetId: string) => {
+    router.push(`/dataset/${dataSetId}`);
   };
 
   return (
@@ -504,7 +511,8 @@ export default function Dashboard() {
                 {dataSets.map((ds) => (
                   <div
                     key={ds.id}
-                    className="bg-[#0f0f13] rounded-lg p-4 border border-[#2a2a36] hover:border-[#3a3a46] transition-colors"
+                    onClick={() => handleViewDataSet(ds.id)}
+                    className="bg-[#0f0f13] rounded-lg p-4 border cursor-pointer transition-all border-[#2a2a36] hover:border-purple-500/50 hover:bg-[#1a1a24]"
                   >
                     <div className="flex items-start justify-between mb-3">
                       <div>
@@ -515,7 +523,10 @@ export default function Dashboard() {
                         </p>
                       </div>
                       <button
-                        onClick={() => removeDataSet(ds.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeDataSet(ds.id);
+                        }}
                         className="text-gray-500 hover:text-red-400 transition-colors p-1"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -539,11 +550,7 @@ export default function Dashboard() {
               </div>
 
               <p className="text-gray-500 text-sm mt-4">
-                Go to{" "}
-                <Link href="/manage-proof" className="text-purple-400 hover:underline">
-                  Manage Proof
-                </Link>{" "}
-                to select and work with a data set.
+                Click on a data set to view its users and details.
               </p>
             </div>
           )}

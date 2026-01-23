@@ -28,7 +28,7 @@ const roles = [
     description: "Access verified respondents and conduct surveys with confidence",
     icon: BarChart3,
     color: "bg-purple-500",
-    redirectPath: "/dashboard",
+    redirectPath: "/insight/dashboard",
   },
   {
     id: "panelist",
