@@ -10,20 +10,12 @@ import {
   Lock,
   Zap,
   Eye,
-  LayoutGrid,
   BarChart3,
   User,
   Layers,
 } from "lucide-react";
 
 const roles = [
-  {
-    id: "panel_company",
-    title: "Panel Company",
-    description: "Manage attributes verification of your community members",
-    icon: LayoutGrid,
-    color: "bg-blue-500",
-  },
   {
     id: "insight_company",
     title: "Insight Company",
@@ -110,7 +102,7 @@ export default function SignupPage() {
 
       {/* Role Selection Step */}
       {step === "role" && (
-        <div className="relative w-full max-w-3xl">
+        <div className="relative w-full max-w-2xl">
           <div className="bg-[#12121a] border border-[#1a1a24] rounded-2xl p-8 shadow-2xl">
             {/* Logo Icon */}
             <div className="flex justify-center mb-6">
@@ -126,7 +118,7 @@ export default function SignupPage() {
             </div>
 
             {/* Role Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
               {roles.map((role) => {
                 const isSelected = selectedRole === role.id;
                 const IconComponent = role.icon;
