@@ -87,7 +87,10 @@ export default function OnboardingPage() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [showLinkedInModal, setShowLinkedInModal] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedConnectMethod, setSelectedConnectMethod] = useState<'quick' | 'full' | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   // Check for LinkedIn callback result
   useEffect(() => {
@@ -152,8 +155,37 @@ export default function OnboardingPage() {
 
   // Handle Full Profile Upload (Archive)
   const handleFullProfileUpload = () => {
-    // TODO: Implement archive upload flow
-    alert("Full Profile Upload coming soon! This will allow you to upload your LinkedIn data export for maximum rewards.");
+    setShowLinkedInModal(false);
+    setShowUploadModal(true);
+  };
+
+  // Handle file drop
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file && file.name.endsWith('.zip')) {
+      setUploadedFile(file);
+    }
+  };
+
+  // Handle file input change
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.name.endsWith('.zip')) {
+      setUploadedFile(file);
+    }
+  };
+
+  // Handle upload submission
+  const handleUploadSubmit = () => {
+    if (uploadedFile) {
+      // TODO: Process the uploaded file
+      console.log("Uploading file:", uploadedFile.name);
+      setLinkedinConnected(true);
+      setShowUploadModal(false);
+      setCurrentStep(3);
+    }
   };
 
   const handleGitHubConnect = () => {
@@ -495,6 +527,153 @@ export default function OnboardingPage() {
                         className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-700 disabled:text-gray-500 text-white rounded-lg font-medium transition-colors"
                       >
                         Connect LinkedIn
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* LinkedIn Upload Modal */}
+              {showUploadModal && (
+                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+                  <div className="bg-[#0d1117] border border-[#1a1a24] rounded-2xl w-full max-w-lg overflow-hidden">
+                    {/* Modal Header */}
+                    <div className="p-6 pb-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                          <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                          </svg>
+                        </div>
+                        <h3 className="text-xl font-bold text-white">Connect LinkedIn</h3>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setShowUploadModal(false);
+                          setUploadedFile(null);
+                        }}
+                        className="text-gray-400 hover:text-white transition-colors"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    {/* Steps */}
+                    <div className="px-6 space-y-4">
+                      {/* Step 1: Export your data */}
+                      <a
+                        href="https://www.linkedin.com/mypreferences/d/download-my-data"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3 p-3 bg-[#12161c] rounded-lg border border-[#1a1a24] hover:border-emerald-500/50 transition-colors"
+                      >
+                        <div className="w-8 h-8 bg-emerald-500/20 rounded-lg flex items-center justify-center">
+                          <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                          </svg>
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-emerald-400 font-medium">Export your data</span>
+                            <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            </svg>
+                          </div>
+                          <p className="text-gray-500 text-sm">Download your data from LinkedIn</p>
+                        </div>
+                      </a>
+
+                      {/* Step 2: Upload your file */}
+                      <div className="flex items-center gap-3 p-3 bg-[#12161c] rounded-lg border border-[#1a1a24]">
+                        <div className="w-8 h-8 bg-gray-700 rounded-lg flex items-center justify-center">
+                          <Upload className="w-4 h-4 text-gray-400" />
+                        </div>
+                        <div>
+                          <span className="text-white font-medium">Upload your file</span>
+                          <p className="text-gray-500 text-sm">ZIP file accepted</p>
+                        </div>
+                      </div>
+
+                      {/* Drop Zone */}
+                      <div
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          setIsDragging(true);
+                        }}
+                        onDragLeave={() => setIsDragging(false)}
+                        onDrop={handleDrop}
+                        onClick={() => document.getElementById('fileInput')?.click()}
+                        className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
+                          isDragging
+                            ? 'border-emerald-500 bg-emerald-500/10'
+                            : uploadedFile
+                            ? 'border-emerald-500 bg-emerald-500/5'
+                            : 'border-[#2a2a36] hover:border-[#3a3a46]'
+                        }`}
+                      >
+                        <input
+                          id="fileInput"
+                          type="file"
+                          accept=".zip"
+                          onChange={handleFileChange}
+                          className="hidden"
+                        />
+                        {uploadedFile ? (
+                          <>
+                            <div className="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
+                              <CheckCircle className="w-6 h-6 text-emerald-400" />
+                            </div>
+                            <p className="text-white font-medium mb-1">{uploadedFile.name}</p>
+                            <p className="text-gray-500 text-sm">Click to change file</p>
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-10 h-10 text-gray-500 mx-auto mb-3" />
+                            <p className="text-white font-medium mb-1">Drop your LinkedIn export here or click to browse</p>
+                            <p className="text-gray-500 text-sm mb-3">You&apos;ll choose what data to share in the next step</p>
+                            <div className="flex items-center justify-center gap-2 text-gray-500 text-sm">
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                              <span>ZIP</span>
+                            </div>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Learn More Link */}
+                      <div className="text-center">
+                        <a
+                          href="https://www.linkedin.com/help/linkedin/answer/50191"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-gray-400 hover:text-white text-sm transition-colors"
+                        >
+                          Learn more
+                        </a>
+                      </div>
+                    </div>
+
+                    {/* Modal Footer */}
+                    <div className="p-6 pt-4 flex items-center justify-between">
+                      <button
+                        onClick={() => {
+                          setShowUploadModal(false);
+                          setShowLinkedInModal(true);
+                          setUploadedFile(null);
+                        }}
+                        className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                        Back
+                      </button>
+                      <button
+                        onClick={handleUploadSubmit}
+                        disabled={!uploadedFile}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-700 disabled:text-gray-500 text-white rounded-lg font-medium transition-colors"
+                      >
+                        Continue
                         <ChevronRight className="w-4 h-4" />
                       </button>
                     </div>
