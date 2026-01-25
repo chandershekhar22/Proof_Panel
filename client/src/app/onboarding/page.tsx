@@ -18,6 +18,11 @@ import {
   Stethoscope,
   GraduationCap,
   Grid3X3,
+  Link,
+  Upload,
+  Star,
+  X,
+  Check,
 } from "lucide-react";
 
 const steps = [
@@ -81,6 +86,8 @@ export default function OnboardingPage() {
   const [githubConnected, setGithubConnected] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [showLinkedInModal, setShowLinkedInModal] = useState(false);
+  const [selectedConnectMethod, setSelectedConnectMethod] = useState<'quick' | 'full' | null>(null);
 
   // Check for LinkedIn callback result
   useEffect(() => {
@@ -114,7 +121,14 @@ export default function OnboardingPage() {
     );
   };
 
-  const handleLinkedInConnect = async () => {
+  // Show the LinkedIn connect modal
+  const handleLinkedInConnect = () => {
+    setShowLinkedInModal(true);
+    setSelectedConnectMethod(null);
+  };
+
+  // Actually connect via OAuth (Quick Connect)
+  const handleQuickConnect = async () => {
     try {
       // Set flag to indicate onboarding flow
       sessionStorage.setItem("linkedinOnboarding", "true");
@@ -134,6 +148,12 @@ export default function OnboardingPage() {
       console.error("LinkedIn connect error:", error);
       sessionStorage.removeItem("linkedinOnboarding");
     }
+  };
+
+  // Handle Full Profile Upload (Archive)
+  const handleFullProfileUpload = () => {
+    // TODO: Implement archive upload flow
+    alert("Full Profile Upload coming soon! This will allow you to upload your LinkedIn data export for maximum rewards.");
   };
 
   const handleGitHubConnect = () => {
@@ -311,6 +331,173 @@ export default function OnboardingPage() {
                     <p className="text-gray-400 text-sm">
                       Please wait while we verify your credentials...
                     </p>
+                  </div>
+                </div>
+              )}
+
+              {/* LinkedIn Connect Modal */}
+              {showLinkedInModal && (
+                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+                  <div className="bg-[#0d1117] border border-[#1a1a24] rounded-2xl w-full max-w-2xl overflow-hidden">
+                    {/* Modal Header */}
+                    <div className="p-6 pb-4">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center">
+                          <svg className="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                          </svg>
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-bold text-white">Connect LinkedIn</h3>
+                          <p className="text-gray-400 text-sm">Choose how you want to verify your profile</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Options */}
+                    <div className="px-6 space-y-3">
+                      {/* Quick Connect Option */}
+                      <button
+                        onClick={() => setSelectedConnectMethod('quick')}
+                        className={`w-full p-4 rounded-xl border text-left transition-all ${
+                          selectedConnectMethod === 'quick'
+                            ? 'bg-[#1a2332] border-blue-500'
+                            : 'bg-[#12161c] border-[#1a1a24] hover:border-[#2a2a36]'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center mt-0.5">
+                              <Link className="w-5 h-5 text-blue-400" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-white font-semibold">Quick Connect</span>
+                                <span className="text-xs text-gray-400">via OAuth</span>
+                              </div>
+                              <p className="text-gray-400 text-sm mb-2">Instant verification with basic profile info</p>
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2 text-sm">
+                                  <Check className="w-4 h-4 text-emerald-400" />
+                                  <span className="text-gray-300">Name & headline</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-sm">
+                                  <Check className="w-4 h-4 text-emerald-400" />
+                                  <span className="text-gray-300">Current position</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-sm">
+                                  <X className="w-4 h-4 text-gray-500" />
+                                  <span className="text-gray-500">No network data</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-xs text-gray-500 block mb-1">Quick</span>
+                            <div className="bg-[#1a2332] px-2 py-1 rounded">
+                              <span className="text-xs text-gray-400">Reward Boost</span>
+                              <p className="text-lg font-bold text-white">1.5x</p>
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+
+                      {/* Full Profile Upload Option */}
+                      <button
+                        onClick={() => setSelectedConnectMethod('full')}
+                        className={`w-full p-4 rounded-xl border text-left transition-all relative ${
+                          selectedConnectMethod === 'full'
+                            ? 'bg-[#1a2332] border-emerald-500'
+                            : 'bg-[#12161c] border-[#1a1a24] hover:border-[#2a2a36]'
+                        }`}
+                      >
+                        {/* Recommended Badge */}
+                        <div className="absolute -top-2 right-4 flex items-center gap-1 bg-amber-500 text-black text-xs font-semibold px-2 py-0.5 rounded">
+                          <Star className="w-3 h-3" />
+                          Recommended
+                        </div>
+
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 bg-gray-700 rounded-lg flex items-center justify-center mt-0.5">
+                              <Upload className="w-5 h-5 text-gray-300" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-white font-semibold">Full Profile Upload</span>
+                                <span className="text-xs text-gray-400">via Archive</span>
+                              </div>
+                              <p className="text-gray-400 text-sm mb-2">Upload your LinkedIn data export for maximum rewards</p>
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2 text-sm">
+                                  <Check className="w-4 h-4 text-emerald-400" />
+                                  <span className="text-gray-300">Complete profile & work history</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-sm">
+                                  <Check className="w-4 h-4 text-emerald-400" />
+                                  <span className="text-gray-300">Skills & endorsements</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-sm">
+                                  <Check className="w-4 h-4 text-emerald-400" />
+                                  <span className="text-gray-300">Network connections</span>
+                                  <span className="text-amber-400 text-xs">+Referral earnings</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="bg-emerald-500/20 px-2 py-1 rounded">
+                              <span className="text-xs text-emerald-400">Reward Boost</span>
+                              <p className="text-lg font-bold text-emerald-400">3x</p>
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    </div>
+
+                    {/* Info Box */}
+                    <div className="px-6 mt-4">
+                      <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
+                        <div className="flex items-start gap-2">
+                          <Info className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-blue-400 text-sm font-medium">Why upload your archive?</p>
+                            <p className="text-gray-400 text-xs mt-1">
+                              With your network data, you can earn by referring similar professionals for surveys. Your data is ZKP protected and never shared.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Modal Footer */}
+                    <div className="p-6 pt-4 flex items-center justify-between">
+                      <button
+                        onClick={() => setShowLinkedInModal(false)}
+                        className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                        Back
+                      </button>
+                      <div className="flex items-center gap-2">
+                        <Shield className="w-4 h-4 text-emerald-400" />
+                        <span className="text-emerald-400 text-xs">ZKP Protected</span>
+                      </div>
+                      <button
+                        onClick={() => {
+                          if (selectedConnectMethod === 'quick') {
+                            handleQuickConnect();
+                          } else if (selectedConnectMethod === 'full') {
+                            handleFullProfileUpload();
+                          }
+                        }}
+                        disabled={!selectedConnectMethod}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-700 disabled:text-gray-500 text-white rounded-lg font-medium transition-colors"
+                      >
+                        Connect LinkedIn
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
