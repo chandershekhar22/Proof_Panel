@@ -686,7 +686,7 @@ export default function OnboardingPage() {
               {/* Export Instructions Modal */}
               {showExportInstructions && (
                 <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-                  <div className="bg-[#0d1117] border border-[#1a1a24] rounded-2xl w-full max-w-2xl overflow-hidden">
+                  <div className="bg-[#0d1117] border border-[#1a1a24] rounded-2xl w-full max-w-4xl overflow-hidden">
                     {/* Close Button */}
                     <div className="flex justify-end p-4 pb-0">
                       <button
