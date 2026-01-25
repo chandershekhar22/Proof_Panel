@@ -102,27 +102,26 @@ export default function ManageProof() {
   ];
 
   // Calculate default selected queries based on Dashboard filters
+  // New filter logic: empty array = "All", single value = specific filter
   const calculateDefaultQueries = (filters: Record<string, string[]>): string[] => {
     const defaultSelected: string[] = [];
 
-    Object.entries(filters).forEach(([categoryKey, selectedValues]) => {
-      if (selectedValues && selectedValues.length > 0 && verificationQueries[categoryKey]) {
-        const allOptionsInCategory = Object.keys(verificationQueries[categoryKey]);
-        const isAllSelected = selectedValues.length === allOptionsInCategory.length;
+    Object.entries(verificationQueries).forEach(([categoryKey, attributes]) => {
+      const selectedValues = filters[categoryKey] || [];
+      const allOptionsInCategory = Object.keys(attributes);
 
-        if (isAllSelected) {
-          // If all selected in filter, select all queries in this category
-          allOptionsInCategory.forEach(attribute => {
+      // Empty array means "All" was selected - select all queries for this category
+      if (selectedValues.length === 0) {
+        allOptionsInCategory.forEach(attribute => {
+          defaultSelected.push(`${categoryKey}-${attribute}`);
+        });
+      } else {
+        // Specific filter selected - only select matching queries
+        selectedValues.forEach(attribute => {
+          if (attributes[attribute]) {
             defaultSelected.push(`${categoryKey}-${attribute}`);
-          });
-        } else {
-          // Otherwise, only select the specifically filtered ones
-          selectedValues.forEach(attribute => {
-            if (verificationQueries[categoryKey][attribute]) {
-              defaultSelected.push(`${categoryKey}-${attribute}`);
-            }
-          });
-        }
+          }
+        });
       }
     });
 
@@ -190,18 +189,17 @@ export default function ManageProof() {
   };
 
   // Get ALL queries for display
+  // New filter logic: empty array = "All", single value = specific filter
   const getAllQueries = () => {
     const queries: { key: string; attribute: string; query: string; category: string; color: string; categoryKey: string; isFromFilter: boolean }[] = [];
 
     Object.entries(verificationQueries).forEach(([categoryKey, attributes]) => {
-      const allOptionsInCategory = Object.keys(attributes);
       const selectedInCategory = workingFilters[categoryKey] || [];
-      const isAllSelectedInCategory = selectedInCategory.length === allOptionsInCategory.length && selectedInCategory.length > 0;
 
       Object.entries(attributes).forEach(([attribute, data]) => {
-        // Check if this attribute was selected in Dashboard filters
-        // OR if "Select All" was chosen for this category
-        const isFromFilter = isAllSelectedInCategory || selectedInCategory.includes(attribute);
+        // Empty array means "All" was selected for this category
+        // Single value means specific filter was selected
+        const isFromFilter = selectedInCategory.length === 0 || selectedInCategory.includes(attribute);
 
         queries.push({
           key: `${categoryKey}-${attribute}`,

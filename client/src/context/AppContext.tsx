@@ -37,6 +37,18 @@ export interface DataSet {
   totalRecords: number;
 }
 
+// Excel Upload type
+export interface ExcelUpload {
+  id: string;
+  fileName: string;
+  uploadedAt: string;
+  totalRecords: number;
+  data: Respondent[];
+}
+
+// Connection type - either API or Excel
+export type ConnectionType = 'api' | 'excel' | null;
+
 // App State type
 interface AppState {
   // Connection
@@ -44,6 +56,8 @@ interface AppState {
   apiKey: string;
   environment: string;
   isConnected: boolean;
+  connectionType: ConnectionType;
+  activeExcelUploadId: string | null;
 
   // Endpoint
   selectedEndpoint: string | null;
@@ -59,6 +73,9 @@ interface AppState {
   dataSets: DataSet[];
   activeDataSetId: string | null;
 
+  // Excel Uploads
+  excelUploads: ExcelUpload[];
+
   // Manage Proof
   selectedSource: string | null;
   selectedQueries: string[];
@@ -73,6 +90,12 @@ interface AppContextType extends AppState {
   setApiKey: (key: string) => void;
   setEnvironment: (env: string) => void;
   setIsConnected: (connected: boolean) => void;
+  setConnectionType: (type: ConnectionType) => void;
+  setActiveExcelUploadId: (id: string | null) => void;
+  connectToApi: () => void;
+  connectToExcel: (uploadId: string) => void;
+  disconnect: () => void;
+  getActiveExcelUpload: () => ExcelUpload | null;
   setSelectedEndpoint: (endpoint: string | null) => void;
   setSelectedFilters: (filters: Record<string, string[]>) => void;
   setLoadedData: (data: Respondent[] | null) => void;
@@ -82,9 +105,13 @@ interface AppContextType extends AppState {
   setLastVerificationConfig: (config: VerificationConfig | null) => void;
   // Data Sets
   addDataSet: (name: string) => void;
+  addDataSetFromExcel: (name: string, data: Respondent[], filters: Record<string, string[]>) => void;
   removeDataSet: (id: string) => void;
   setActiveDataSetId: (id: string | null) => void;
   getActiveDataSet: () => DataSet | null;
+  // Excel Uploads
+  addExcelUpload: (fileName: string, data: Respondent[]) => void;
+  removeExcelUpload: (id: string) => void;
   resetFilters: () => void;
   resetAll: () => void;
 }
@@ -102,12 +129,15 @@ const defaultState: AppState = {
   apiKey: "",
   environment: "Production",
   isConnected: false,
+  connectionType: null,
+  activeExcelUploadId: null,
   selectedEndpoint: null,
   selectedFilters: defaultFilters,
   loadedData: null,
   totalRecords: 0,
   dataSets: [],
   activeDataSetId: null,
+  excelUploads: [],
   selectedSource: null,
   selectedQueries: [],
   lastVerificationConfig: null,
@@ -144,6 +174,55 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const setApiKey = (key: string) => setState(prev => ({ ...prev, apiKey: key }));
   const setEnvironment = (env: string) => setState(prev => ({ ...prev, environment: env }));
   const setIsConnected = (connected: boolean) => setState(prev => ({ ...prev, isConnected: connected }));
+  const setConnectionType = (type: ConnectionType) => setState(prev => ({ ...prev, connectionType: type }));
+  const setActiveExcelUploadId = (id: string | null) => setState(prev => ({ ...prev, activeExcelUploadId: id }));
+
+  // Connect to API
+  const connectToApi = () => {
+    setState(prev => ({
+      ...prev,
+      isConnected: true,
+      connectionType: 'api',
+      activeExcelUploadId: null,
+      loadedData: null,
+      totalRecords: 0,
+      selectedEndpoint: null,
+    }));
+  };
+
+  // Connect to Excel data
+  const connectToExcel = (uploadId: string) => {
+    setState(prev => ({
+      ...prev,
+      isConnected: true,
+      connectionType: 'excel',
+      activeExcelUploadId: uploadId,
+      loadedData: null,
+      totalRecords: 0,
+      selectedEndpoint: null,
+    }));
+  };
+
+  // Disconnect (works for both API and Excel)
+  const disconnect = () => {
+    setState(prev => ({
+      ...prev,
+      isConnected: false,
+      connectionType: null,
+      activeExcelUploadId: null,
+      loadedData: null,
+      totalRecords: 0,
+      selectedEndpoint: null,
+      selectedFilters: defaultFilters,
+    }));
+  };
+
+  // Get active Excel upload
+  const getActiveExcelUpload = (): ExcelUpload | null => {
+    if (!state.activeExcelUploadId || !state.excelUploads) return null;
+    return state.excelUploads.find(eu => eu.id === state.activeExcelUploadId) || null;
+  };
+
   const setSelectedEndpoint = (endpoint: string | null) => setState(prev => ({ ...prev, selectedEndpoint: endpoint }));
   const setSelectedFilters = (filters: Record<string, string[]>) => setState(prev => ({ ...prev, selectedFilters: filters }));
   const setLoadedData = (data: Respondent[] | null) => setState(prev => ({ ...prev, loadedData: data }));
@@ -184,8 +263,49 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }));
   };
 
+  // Add dataset from Excel upload with filters
+  const addDataSetFromExcel = (name: string, data: Respondent[], filters: Record<string, string[]>) => {
+    const newDataSet: DataSet = {
+      id: `dataset-${Date.now()}`,
+      name: name,
+      createdAt: new Date().toISOString(),
+      endpoint: "excel-upload",
+      filters: { ...filters },
+      data: [...data],
+      totalRecords: data.length,
+    };
+
+    setState(prev => ({
+      ...prev,
+      dataSets: [...(prev.dataSets || []), newDataSet],
+    }));
+  };
+
   const setActiveDataSetId = (id: string | null) => {
     setState(prev => ({ ...prev, activeDataSetId: id }));
+  };
+
+  // Excel Upload functions
+  const addExcelUpload = (fileName: string, data: Respondent[]) => {
+    const newUpload: ExcelUpload = {
+      id: `excel-${Date.now()}`,
+      fileName: fileName,
+      uploadedAt: new Date().toISOString(),
+      totalRecords: data.length,
+      data: data,
+    };
+
+    setState(prev => ({
+      ...prev,
+      excelUploads: [...(prev.excelUploads || []), newUpload],
+    }));
+  };
+
+  const removeExcelUpload = (id: string) => {
+    setState(prev => ({
+      ...prev,
+      excelUploads: (prev.excelUploads || []).filter(eu => eu.id !== id),
+    }));
   };
 
   const getActiveDataSet = (): DataSet | null => {
@@ -213,6 +333,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setApiKey,
         setEnvironment,
         setIsConnected,
+        setConnectionType,
+        setActiveExcelUploadId,
+        connectToApi,
+        connectToExcel,
+        disconnect,
+        getActiveExcelUpload,
         setSelectedEndpoint,
         setSelectedFilters,
         setLoadedData,
@@ -221,9 +347,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setSelectedQueries,
         setLastVerificationConfig,
         addDataSet,
+        addDataSetFromExcel,
         removeDataSet,
         setActiveDataSetId,
         getActiveDataSet,
+        addExcelUpload,
+        removeExcelUpload,
         resetFilters,
         resetAll,
       }}
