@@ -88,6 +88,7 @@ export default function OnboardingPage() {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [showLinkedInModal, setShowLinkedInModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showExportInstructions, setShowExportInstructions] = useState(false);
   const [selectedConnectMethod, setSelectedConnectMethod] = useState<'quick' | 'full' | null>(null);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -562,11 +563,12 @@ export default function OnboardingPage() {
                     {/* Steps */}
                     <div className="px-6 space-y-4">
                       {/* Step 1: Export your data */}
-                      <a
-                        href="https://www.linkedin.com/mypreferences/d/download-my-data"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-3 p-3 bg-[#12161c] rounded-lg border border-[#1a1a24] hover:border-emerald-500/50 transition-colors"
+                      <button
+                        onClick={() => {
+                          setShowUploadModal(false);
+                          setShowExportInstructions(true);
+                        }}
+                        className="w-full flex items-center gap-3 p-3 bg-[#12161c] rounded-lg border border-[#1a1a24] hover:border-emerald-500/50 transition-colors text-left"
                       >
                         <div className="w-8 h-8 bg-emerald-500/20 rounded-lg flex items-center justify-center">
                           <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -582,7 +584,7 @@ export default function OnboardingPage() {
                           </div>
                           <p className="text-gray-500 text-sm">Download your data from LinkedIn</p>
                         </div>
-                      </a>
+                      </button>
 
                       {/* Step 2: Upload your file */}
                       <div className="flex items-center gap-3 p-3 bg-[#12161c] rounded-lg border border-[#1a1a24]">
@@ -675,6 +677,131 @@ export default function OnboardingPage() {
                       >
                         Continue
                         <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Export Instructions Modal */}
+              {showExportInstructions && (
+                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+                  <div className="bg-[#0d1117] border border-[#1a1a24] rounded-2xl w-full max-w-2xl overflow-hidden">
+                    {/* Close Button */}
+                    <div className="flex justify-end p-4 pb-0">
+                      <button
+                        onClick={() => {
+                          setShowExportInstructions(false);
+                          setShowUploadModal(true);
+                        }}
+                        className="text-gray-400 hover:text-white transition-colors"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    {/* Content */}
+                    <div className="px-8 pb-8">
+                      <h2 className="text-2xl font-bold text-white text-center mb-6">
+                        Request your archive on the next screen
+                      </h2>
+
+                      {/* LinkedIn Export Preview */}
+                      <div className="bg-white rounded-lg p-6 mb-6">
+                        <h3 className="text-gray-800 font-semibold mb-2">Export your data</h3>
+                        <p className="text-gray-600 text-sm mb-4">
+                          Your LinkedIn data belongs to you, and you can download an archive any time or{" "}
+                          <span className="text-blue-600">view the rich media</span> you have uploaded.
+                        </p>
+
+                        {/* Option 1 - Recommended */}
+                        <div className="mb-3">
+                          <div className="flex items-start gap-3 p-3 border-2 border-blue-500 rounded-lg bg-blue-50">
+                            <div className="flex items-center gap-2">
+                              <span className="w-6 h-6 bg-emerald-500 text-white rounded-full flex items-center justify-center text-sm font-bold">1</span>
+                              <div className="w-5 h-5 rounded-full border-2 border-blue-500 bg-blue-500 flex items-center justify-center">
+                                <div className="w-2 h-2 bg-white rounded-full"></div>
+                              </div>
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-gray-800 text-sm">
+                                <strong>Download larger data archive</strong>, including connections, verifications, contacts, account history, and information we infer about you based on your profile and activity.{" "}
+                                <span className="text-blue-600">Learn more</span>
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Option 2 - Not Recommended */}
+                        <div className="mb-4">
+                          <div className="flex items-start gap-3 p-3 border-2 border-red-300 rounded-lg bg-red-50 relative">
+                            <div className="flex items-center gap-2">
+                              <div className="w-5 h-5 rounded-full border-2 border-gray-300"></div>
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-gray-600 text-sm">
+                                Want something in particular? Select the data files you&apos;re most interested in.
+                              </p>
+                              <div className="flex flex-wrap gap-4 mt-2 opacity-50">
+                                <label className="flex items-center gap-2 text-sm text-gray-600">
+                                  <input type="checkbox" disabled className="w-4 h-4" /> Profile
+                                </label>
+                                <label className="flex items-center gap-2 text-sm text-gray-600">
+                                  <input type="checkbox" disabled className="w-4 h-4" /> Imported Contacts
+                                </label>
+                                <label className="flex items-center gap-2 text-sm text-gray-600">
+                                  <input type="checkbox" disabled className="w-4 h-4" /> Invitations
+                                </label>
+                              </div>
+                            </div>
+                            {/* Warning overlay */}
+                            <div className="absolute -right-2 -bottom-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded transform rotate-3">
+                              Don&apos;t choose this option!
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Request Archive Button Preview */}
+                        <div className="flex items-center gap-3">
+                          <span className="w-6 h-6 bg-emerald-500 text-white rounded-full flex items-center justify-center text-sm font-bold">2</span>
+                          <button className="px-4 py-2 bg-blue-600 text-white rounded-full text-sm font-medium">
+                            Request archive
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Instructions */}
+                      <div className="space-y-4 mb-6">
+                        <div className="flex items-start gap-3">
+                          <span className="w-6 h-6 bg-emerald-500 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">1</span>
+                          <div>
+                            <p className="text-white font-medium">Select &quot;Download larger data archive&quot; (top option)</p>
+                            <div className="flex items-center gap-2 mt-1 text-amber-400 text-sm">
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                              </svg>
+                              <span>The second option won&apos;t work as it doesn&apos;t include your connections.</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-start gap-3">
+                          <span className="w-6 h-6 bg-emerald-500 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">2</span>
+                          <p className="text-white font-medium">Click &quot;Request archive&quot;</p>
+                        </div>
+                      </div>
+
+                      {/* Continue Button */}
+                      <button
+                        onClick={() => {
+                          window.open("https://www.linkedin.com/mypreferences/d/download-my-data", "_blank");
+                        }}
+                        className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                      >
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                        </svg>
+                        Continue to LinkedIn
                       </button>
                     </div>
                   </div>
