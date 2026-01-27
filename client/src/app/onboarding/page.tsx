@@ -92,6 +92,13 @@ export default function OnboardingPage() {
   const [selectedConnectMethod, setSelectedConnectMethod] = useState<'quick' | 'full' | null>(null);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [showDataSelectionModal, setShowDataSelectionModal] = useState(false);
+  const [selectedDataTypes, setSelectedDataTypes] = useState({
+    basicInfo: true,
+    connections: true,
+    messageHeaders: true,
+    importedContacts: true,
+  });
 
   // Check for LinkedIn callback result
   useEffect(() => {
@@ -167,6 +174,9 @@ export default function OnboardingPage() {
     const file = e.dataTransfer.files[0];
     if (file && file.name.endsWith('.zip')) {
       setUploadedFile(file);
+      // Show data selection modal after file is uploaded
+      setShowUploadModal(false);
+      setShowDataSelectionModal(true);
     }
   };
 
@@ -175,17 +185,44 @@ export default function OnboardingPage() {
     const file = e.target.files?.[0];
     if (file && file.name.endsWith('.zip')) {
       setUploadedFile(file);
+      // Show data selection modal after file is uploaded
+      setShowUploadModal(false);
+      setShowDataSelectionModal(true);
     }
   };
 
-  // Handle upload submission
+  // Toggle data type selection
+  const toggleDataType = (key: keyof typeof selectedDataTypes) => {
+    // Connections is required and cannot be deselected
+    if (key === 'connections') return;
+    setSelectedDataTypes(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
+
+  // Get selected count
+  const getSelectedCount = () => {
+    return Object.values(selectedDataTypes).filter(Boolean).length;
+  };
+
+  // Handle final upload submission
+  const handleFinalUpload = () => {
+    if (uploadedFile) {
+      // TODO: Process the uploaded file with selected data types
+      console.log("Uploading file:", uploadedFile.name);
+      console.log("Selected data types:", selectedDataTypes);
+      setLinkedinConnected(true);
+      setShowDataSelectionModal(false);
+      setCurrentStep(3);
+    }
+  };
+
+  // Handle upload submission (now goes to data selection)
   const handleUploadSubmit = () => {
     if (uploadedFile) {
-      // TODO: Process the uploaded file
-      console.log("Uploading file:", uploadedFile.name);
-      setLinkedinConnected(true);
       setShowUploadModal(false);
-      setCurrentStep(3);
+      setShowDataSelectionModal(true);
     }
   };
 
@@ -677,6 +714,149 @@ export default function OnboardingPage() {
                       >
                         Continue
                         <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Data Selection Modal */}
+              {showDataSelectionModal && (
+                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+                  <div className="bg-[#0d1117] border border-[#1a1a24] rounded-2xl w-full max-w-lg overflow-hidden">
+                    {/* Modal Header */}
+                    <div className="p-6 pb-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                          <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                          </svg>
+                        </div>
+                        <h3 className="text-xl font-bold text-white">Connect LinkedIn</h3>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setShowDataSelectionModal(false);
+                          setUploadedFile(null);
+                        }}
+                        className="text-gray-400 hover:text-white transition-colors"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    {/* Data Selection Content */}
+                    <div className="px-6">
+                      <div className="mb-4">
+                        <h4 className="text-white font-semibold text-lg">Select data to upload</h4>
+                        <p className="text-gray-400 text-sm">Sensitive data is not shared to Happenstance.</p>
+                      </div>
+
+                      {/* Data Type Options */}
+                      <div className="space-y-3">
+                        {/* Basic Information */}
+                        <button
+                          onClick={() => toggleDataType('basicInfo')}
+                          className="w-full flex items-start gap-3 p-3 bg-[#12161c] rounded-lg border border-[#1a1a24] hover:border-[#2a2a36] transition-colors text-left"
+                        >
+                          <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                            selectedDataTypes.basicInfo
+                              ? 'bg-emerald-500'
+                              : 'border-2 border-gray-600'
+                          }`}>
+                            {selectedDataTypes.basicInfo && <Check className="w-3 h-3 text-white" />}
+                          </div>
+                          <div>
+                            <span className="text-white font-medium">Basic information</span>
+                            <p className="text-gray-500 text-sm">Profile, work history, education, skills, and contact info</p>
+                          </div>
+                        </button>
+
+                        {/* Connections - Required */}
+                        <div className="w-full flex items-start gap-3 p-3 bg-[#12161c] rounded-lg border border-[#1a1a24] text-left">
+                          <div className="w-5 h-5 rounded bg-emerald-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <Check className="w-3 h-3 text-white" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-white font-medium">Connections</span>
+                              <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded font-medium">Required</span>
+                            </div>
+                            <p className="text-gray-500 text-sm">Your LinkedIn connections and associated URLs</p>
+                          </div>
+                        </div>
+
+                        {/* Message Headers */}
+                        <button
+                          onClick={() => toggleDataType('messageHeaders')}
+                          className="w-full flex items-start gap-3 p-3 bg-[#12161c] rounded-lg border border-[#1a1a24] hover:border-[#2a2a36] transition-colors text-left"
+                        >
+                          <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                            selectedDataTypes.messageHeaders
+                              ? 'bg-emerald-500'
+                              : 'border-2 border-gray-600'
+                          }`}>
+                            {selectedDataTypes.messageHeaders && <Check className="w-3 h-3 text-white" />}
+                          </div>
+                          <div>
+                            <span className="text-white font-medium">Message headers</span>
+                            <p className="text-gray-500 text-sm">Metadata only - messages are not uploaded.</p>
+                          </div>
+                        </button>
+
+                        {/* Imported Contacts */}
+                        <button
+                          onClick={() => toggleDataType('importedContacts')}
+                          className="w-full flex items-start gap-3 p-3 bg-[#12161c] rounded-lg border border-[#1a1a24] hover:border-[#2a2a36] transition-colors text-left"
+                        >
+                          <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                            selectedDataTypes.importedContacts
+                              ? 'bg-emerald-500'
+                              : 'border-2 border-gray-600'
+                          }`}>
+                            {selectedDataTypes.importedContacts && <Check className="w-3 h-3 text-white" />}
+                          </div>
+                          <div>
+                            <span className="text-white font-medium">Imported contacts</span>
+                            <p className="text-gray-500 text-sm">Phone book contacts from the LinkedIn app</p>
+                          </div>
+                        </button>
+                      </div>
+
+                      {/* Selected Count */}
+                      <div className="mt-4 text-gray-400 text-sm">
+                        {getSelectedCount()} of 4 selected
+                      </div>
+
+                      {/* Learn More Link */}
+                      <div className="mt-2 mb-4">
+                        <a
+                          href="https://www.linkedin.com/help/linkedin/answer/50191"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-gray-400 hover:text-white text-sm transition-colors"
+                        >
+                          Learn more
+                        </a>
+                      </div>
+                    </div>
+
+                    {/* Modal Footer */}
+                    <div className="p-6 pt-2 flex items-center justify-between">
+                      <button
+                        onClick={() => {
+                          setShowDataSelectionModal(false);
+                          setShowUploadModal(true);
+                        }}
+                        className="px-5 py-2.5 text-gray-400 hover:text-white transition-colors font-medium"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleFinalUpload}
+                        className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-medium transition-colors"
+                      >
+                        Upload
                       </button>
                     </div>
                   </div>
