@@ -70,8 +70,13 @@ export default function SignupPage() {
     if (selectedRole) {
       sessionStorage.setItem("userRole", selectedRole);
     }
-    // Redirect to onboarding flow
-    router.push("/onboarding");
+    // Redirect based on role - insight companies go directly to dashboard
+    if (selectedRole === "insight_company") {
+      router.push("/insight/dashboard");
+    } else {
+      // Panelists go through onboarding flow
+      router.push("/onboarding");
+    }
   };
 
   const features = [

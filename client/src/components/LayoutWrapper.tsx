@@ -22,6 +22,9 @@ export default function LayoutWrapper({
   // Hide sidebar for member pages (they have their own sidebar)
   const isMemberPage = pathname.startsWith("/member");
 
+  // Hide sidebar for insight pages (they have their own sidebar)
+  const isInsightPage = pathname.startsWith("/insight");
+
   if (isVerifyPage) {
     // Standalone layout for verification pages - no sidebar
     return (
@@ -38,6 +41,11 @@ export default function LayoutWrapper({
 
   if (isMemberPage) {
     // Member pages have their own sidebar
+    return <>{children}</>;
+  }
+
+  if (isInsightPage) {
+    // Insight pages have their own sidebar
     return <>{children}</>;
   }
 
