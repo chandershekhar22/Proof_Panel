@@ -19,6 +19,9 @@ import {
   Search,
   Zap,
   ChevronDown,
+  FileText,
+  Link2,
+  Rocket,
 } from "lucide-react";
 
 const steps = [
@@ -175,6 +178,10 @@ export default function NewStudyPage() {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedAudience, setSelectedAudience] = useState<string | null>(null);
   const [selectedTags, setSelectedTags] = useState<Record<string, string[]>>({});
+  const [studyName, setStudyName] = useState("");
+  const [targetCompletes, setTargetCompletes] = useState(500);
+  const [surveyLength, setSurveyLength] = useState(15);
+  const [surveyMethod, setSurveyMethod] = useState<"create" | "external">("create");
 
   const handleAudienceSelect = (audienceId: string) => {
     setSelectedAudience(audienceId);
@@ -209,6 +216,9 @@ export default function NewStudyPage() {
   const selectedSegment = audienceSegments.find(s => s.id === selectedAudience);
   const currentTargetingOptions = selectedAudience ? targetingOptions[selectedAudience] : [];
   const currentSampleProfiles = selectedAudience ? sampleProfiles[selectedAudience] : [];
+
+  // Count total selected targeting criteria
+  const totalSelectedCriteria = Object.values(selectedTags).reduce((sum, tags) => sum + tags.length, 0);
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] flex">
@@ -268,8 +278,8 @@ export default function NewStudyPage() {
           </ul>
         </div>
 
-        {/* Live Feasibility Panel - Show on Step 2 */}
-        {currentStep === 2 && selectedAudience && (
+        {/* Live Feasibility Panel - Show on Step 2 and 4 */}
+        {(currentStep === 2 || currentStep === 4) && selectedAudience && (
           <div className="px-4 py-4">
             <div className="bg-[#12121a] border border-[#1a1a24] rounded-xl p-4">
               <div className="flex items-center gap-2 mb-4">
@@ -315,7 +325,7 @@ export default function NewStudyPage() {
       </aside>
 
       {/* Main Content */}
-      <main className={`flex-1 ml-64 p-8 overflow-auto ${currentStep === 2 ? 'mr-80' : ''}`}>
+      <main className={`flex-1 ml-64 p-8 overflow-auto ${currentStep === 2 || currentStep === 4 ? 'mr-80' : ''}`}>
         {/* Step 1: Select Audience */}
         {currentStep === 1 && (
           <>
@@ -480,41 +490,79 @@ export default function NewStudyPage() {
           <>
             <div className="mb-8">
               <h1 className="text-3xl font-bold text-white mb-2">Launch Your Study</h1>
-              <p className="text-gray-400">Review your study details and launch when ready.</p>
+              <p className="text-gray-400">Configure your study details and start collecting verified responses.</p>
             </div>
 
-            <div className="bg-[#12121a] border border-[#1a1a24] rounded-xl p-6 mb-6">
-              <h3 className="text-white font-semibold mb-4">Study Summary</h3>
+            {/* Study Name */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Study Name <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="text"
+                value={studyName}
+                onChange={(e) => setStudyName(e.target.value)}
+                placeholder="e.g., Developer Tools Survey Q1 2025"
+                className="w-full px-4 py-3 bg-[#12121a] border border-[#1a1a24] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 transition-colors"
+              />
+            </div>
 
-              <div className="space-y-4">
-                <div className="flex justify-between py-3 border-b border-[#1a1a24]">
-                  <span className="text-gray-400">Target Audience</span>
-                  <span className="text-white font-medium">{selectedSegment?.title}</span>
-                </div>
-                <div className="flex justify-between py-3 border-b border-[#1a1a24]">
-                  <span className="text-gray-400">Estimated Matches</span>
-                  <span className="text-white font-medium">{selectedSegment?.verified} verified respondents</span>
-                </div>
-                <div className="flex justify-between py-3 border-b border-[#1a1a24]">
-                  <span className="text-gray-400">Estimated Cost</span>
-                  <span className="text-white font-medium">$3,750</span>
-                </div>
-                <div className="flex justify-between py-3">
-                  <span className="text-gray-400">Estimated Completion</span>
-                  <span className="text-white font-medium">3-5 business days</span>
-                </div>
+            {/* Target Completes & Survey Length */}
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Target Completes <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="number"
+                  value={targetCompletes}
+                  onChange={(e) => setTargetCompletes(Number(e.target.value))}
+                  className="w-full px-4 py-3 bg-[#12121a] border border-[#1a1a24] rounded-lg text-white focus:outline-none focus:border-emerald-500 transition-colors"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Survey Length (min)
+                </label>
+                <input
+                  type="number"
+                  value={surveyLength}
+                  onChange={(e) => setSurveyLength(Number(e.target.value))}
+                  className="w-full px-4 py-3 bg-[#12121a] border border-[#1a1a24] rounded-lg text-white focus:outline-none focus:border-emerald-500 transition-colors"
+                />
               </div>
             </div>
 
-            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 mb-6">
-              <div className="flex items-start gap-3">
-                <Shield className="w-5 h-5 text-emerald-400 mt-0.5" />
-                <div>
-                  <p className="text-emerald-400 font-medium">Verification Guarantee</p>
-                  <p className="text-gray-400 text-sm mt-1">
-                    All responses are verified through zero-knowledge proofs. Receive full refunds for any unverified responses.
-                  </p>
-                </div>
+            {/* Survey Method */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Survey Method
+              </label>
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  onClick={() => setSurveyMethod("create")}
+                  className={`p-6 rounded-xl border transition-all text-center ${
+                    surveyMethod === "create"
+                      ? "bg-[#1a1a24] border-emerald-500"
+                      : "bg-[#12121a] border-[#1a1a24] hover:border-[#2a2a36]"
+                  }`}
+                >
+                  <FileText className="w-6 h-6 text-gray-400 mx-auto mb-2" />
+                  <p className="text-white font-medium">Create Survey</p>
+                  <p className="text-gray-500 text-sm">Use our builder</p>
+                </button>
+                <button
+                  onClick={() => setSurveyMethod("external")}
+                  className={`p-6 rounded-xl border transition-all text-center ${
+                    surveyMethod === "external"
+                      ? "bg-[#1a1a24] border-emerald-500"
+                      : "bg-[#12121a] border-[#1a1a24] hover:border-[#2a2a36]"
+                  }`}
+                >
+                  <Link2 className="w-6 h-6 text-gray-400 mx-auto mb-2" />
+                  <p className="text-white font-medium">External Link</p>
+                  <p className="text-gray-500 text-sm">Qualtrics, etc.</p>
+                </button>
               </div>
             </div>
           </>
@@ -534,22 +582,24 @@ export default function NewStudyPage() {
             <ArrowLeft className="w-5 h-5" />
             Back
           </button>
-          <button
-            onClick={handleNext}
-            disabled={currentStep === 1 && !selectedAudience}
-            className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-colors ${
-              currentStep === 1 && !selectedAudience
-                ? "bg-gray-700 text-gray-500 cursor-not-allowed"
-                : "bg-emerald-500 hover:bg-emerald-600 text-white"
-            }`}
-          >
-            {currentStep === 4 ? "Launch Study" : "Continue"}
-            <ChevronRight className="w-5 h-5" />
-          </button>
+          {currentStep !== 4 && (
+            <button
+              onClick={handleNext}
+              disabled={currentStep === 1 && !selectedAudience}
+              className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-colors ${
+                currentStep === 1 && !selectedAudience
+                  ? "bg-gray-700 text-gray-500 cursor-not-allowed"
+                  : "bg-emerald-500 hover:bg-emerald-600 text-white"
+              }`}
+            >
+              Continue
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          )}
         </div>
       </main>
 
-      {/* Right Sidebar - Matched Respondents (Step 2 only) */}
+      {/* Right Sidebar - Matched Respondents (Step 2) */}
       {currentStep === 2 && selectedAudience && (
         <aside className="w-80 bg-[#0d0d12] border-l border-[#1a1a24] fixed right-0 h-full overflow-auto p-4">
           <div className="bg-[#12121a] border border-[#1a1a24] rounded-xl p-4 mb-4">
@@ -606,6 +656,65 @@ export default function NewStudyPage() {
               + {parseInt(selectedSegment?.verified.replace(/,/g, '') || '0') - currentSampleProfiles.length} more verified matches
             </p>
           </div>
+        </aside>
+      )}
+
+      {/* Right Sidebar - Study Summary (Step 4) */}
+      {currentStep === 4 && selectedAudience && (
+        <aside className="w-80 bg-[#0d0d12] border-l border-[#1a1a24] fixed right-0 h-full overflow-auto p-4">
+          <div className="bg-[#12121a] border border-[#1a1a24] rounded-xl p-4 mb-4">
+            <h3 className="text-white font-semibold mb-4">Study Summary</h3>
+
+            <div className="space-y-4">
+              <div className="flex justify-between">
+                <span className="text-gray-400 text-sm">Audience</span>
+                <span className="text-white font-medium text-sm">{selectedSegment?.title}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400 text-sm">Targeting Criteria</span>
+                <span className="text-emerald-400 font-medium text-sm">{totalSelectedCriteria} selected</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400 text-sm">Verified Available</span>
+                <span className="text-emerald-400 font-medium text-sm">{selectedSegment?.verified}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400 text-sm">Target Completes</span>
+                <span className="text-white font-medium text-sm">{targetCompletes}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400 text-sm">Est. Delivery</span>
+                <span className="text-white font-medium text-sm">2-5 days</span>
+              </div>
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-[#1a1a24]">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-300 font-medium">Total Investment</span>
+                <span className="text-2xl font-bold text-purple-400">$3,750</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Quality Guaranteed */}
+          <div className="bg-[#12121a] border border-[#1a1a24] rounded-xl p-4 mb-4">
+            <div className="flex items-start gap-3">
+              <CheckCircle className="w-5 h-5 text-emerald-400 mt-0.5" />
+              <div>
+                <p className="text-emerald-400 font-medium">Quality Guaranteed</p>
+                <p className="text-gray-500 text-sm">Pay only for verified, quality responses</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Launch Study Button */}
+          <button
+            onClick={handleNext}
+            className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white rounded-xl font-semibold transition-all"
+          >
+            <Rocket className="w-5 h-5" />
+            Launch Study
+          </button>
         </aside>
       )}
     </div>
