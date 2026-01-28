@@ -216,10 +216,13 @@ export default function InsightDashboard() {
             <h1 className="text-3xl font-bold text-white mb-1">Your Research Dashboard</h1>
             <p className="text-gray-400">Access verified respondents for your market research studies</p>
           </div>
-          <button className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-medium transition-colors">
+          <Link
+            href="/insight/new-study"
+            className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-medium transition-colors"
+          >
             <Plus className="w-5 h-5" />
             New Study
-          </button>
+          </Link>
         </div>
 
         {/* Stats Grid */}
