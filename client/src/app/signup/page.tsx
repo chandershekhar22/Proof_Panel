@@ -44,6 +44,7 @@ export default function SignupPage() {
     lastName: "",
     email: "",
     password: "",
+    confirmPassword: "",
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -72,6 +73,19 @@ export default function SignupPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    // Validate password length
+    if (formData.password.length < 6) {
+      setError("Password must be at least 6 characters long");
+      return;
+    }
+
+    // Validate passwords match
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -325,6 +339,25 @@ export default function SignupPage() {
                   value={formData.password}
                   onChange={handleChange}
                   placeholder="••••••••"
+                  minLength={6}
+                  className="w-full px-4 py-3 bg-[#1a1a24] border border-[#2a2a36] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 transition-colors"
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">Must be at least 6 characters</p>
+              </div>
+
+              {/* Confirm Password Field */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Confirm Password
+                </label>
+                <input
+                  type="password"
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  placeholder="••••••••"
+                  minLength={6}
                   className="w-full px-4 py-3 bg-[#1a1a24] border border-[#2a2a36] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 transition-colors"
                   required
                 />
