@@ -13,7 +13,10 @@ import {
   BarChart3,
   User,
   Layers,
+  Loader2,
 } from "lucide-react";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002";
 
 const roles = [
   {
@@ -42,6 +45,8 @@ export default function SignupPage() {
     email: "",
     password: "",
   });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -64,18 +69,51 @@ export default function SignupPage() {
     setStep("role");
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Store role in sessionStorage for use in onboarding
-    if (selectedRole) {
-      sessionStorage.setItem("userRole", selectedRole);
-    }
-    // Redirect based on role - insight companies go directly to dashboard
-    if (selectedRole === "insight_company") {
-      router.push("/insight/dashboard");
-    } else {
-      // Panelists go through onboarding flow
-      router.push("/onboarding");
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/signup`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          role: selectedRole,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || "Failed to create account");
+        setIsLoading(false);
+        return;
+      }
+
+      // Store user data and role in sessionStorage
+      if (selectedRole) {
+        sessionStorage.setItem("userRole", selectedRole);
+      }
+      sessionStorage.setItem("userData", JSON.stringify(data.data));
+
+      // Redirect based on role - insight companies go directly to dashboard
+      if (selectedRole === "insight_company") {
+        router.push("/insight/dashboard");
+      } else {
+        // Panelists go through onboarding flow
+        router.push("/onboarding");
+      }
+    } catch (err) {
+      console.error("Signup error:", err);
+      setError("Failed to connect to server. Please try again.");
+      setIsLoading(false);
     }
   };
 
@@ -221,6 +259,13 @@ export default function SignupPage() {
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-5">
+              {/* Error Message */}
+              {error && (
+                <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-3 text-red-400 text-sm">
+                  {error}
+                </div>
+              )}
+
               {/* Name Fields */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -288,10 +333,20 @@ export default function SignupPage() {
               {/* Submit Button */}
               <button
                 type="submit"
-                className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-semibold transition-colors"
+                disabled={isLoading}
+                className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-500/50 disabled:cursor-not-allowed text-white rounded-lg font-semibold transition-colors"
               >
-                Create Account
-                <ArrowRight className="w-5 h-5" />
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Creating Account...
+                  </>
+                ) : (
+                  <>
+                    Create Account
+                    <ArrowRight className="w-5 h-5" />
+                  </>
+                )}
               </button>
             </form>
 

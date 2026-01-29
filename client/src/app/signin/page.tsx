@@ -11,7 +11,10 @@ import {
   BarChart3,
   User,
   Layers,
+  Loader2,
 } from "lucide-react";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002";
 
 const roles = [
   {
@@ -48,6 +51,8 @@ export default function SigninPage() {
     email: "",
     password: "",
   });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -70,15 +75,46 @@ export default function SigninPage() {
     setStep("role");
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Store role in sessionStorage
-    if (selectedRole) {
-      sessionStorage.setItem("userRole", selectedRole);
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/signin`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          role: selectedRole,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || "Failed to sign in");
+        setIsLoading(false);
+        return;
+      }
+
+      // Store user data and role in sessionStorage
+      if (selectedRole) {
+        sessionStorage.setItem("userRole", selectedRole);
+      }
+      sessionStorage.setItem("userData", JSON.stringify(data.data));
+
+      // Redirect based on selected role
+      const role = roles.find((r) => r.id === selectedRole);
+      router.push(role?.redirectPath || "/member/dashboard");
+    } catch (err) {
+      console.error("Signin error:", err);
+      setError("Failed to connect to server. Please try again.");
+      setIsLoading(false);
     }
-    // Redirect based on selected role
-    const role = roles.find((r) => r.id === selectedRole);
-    router.push(role?.redirectPath || "/member/dashboard");
   };
 
   return (
@@ -205,6 +241,13 @@ export default function SigninPage() {
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-5">
+              {/* Error Message */}
+              {error && (
+                <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-3 text-red-400 text-sm">
+                  {error}
+                </div>
+              )}
+
               {/* Email Field */}
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -247,10 +290,20 @@ export default function SigninPage() {
               {/* Submit Button */}
               <button
                 type="submit"
-                className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-semibold transition-colors"
+                disabled={isLoading}
+                className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-500/50 disabled:cursor-not-allowed text-white rounded-lg font-semibold transition-colors"
               >
-                Sign In
-                <ArrowRight className="w-5 h-5" />
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Signing In...
+                  </>
+                ) : (
+                  <>
+                    Sign In
+                    <ArrowRight className="w-5 h-5" />
+                  </>
+                )}
               </button>
             </form>
 

@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
+const bcrypt = require('bcrypt');
 const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 
@@ -76,6 +77,215 @@ async function storeVerifiedPanelist(hashId, attributes, status = 'verified') {
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+// ==================== User Authentication Endpoints ====================
+
+const SALT_ROUNDS = 10;
+const VALID_ROLES = ['panel_company', 'insight_company', 'panelist'];
+
+// Sign Up - Create new user
+app.post('/api/auth/signup', async (req, res) => {
+  const { email, password, firstName, lastName, role } = req.body;
+
+  // Validate required fields
+  if (!email || !password || !firstName || !lastName || !role) {
+    return res.status(400).json({
+      success: false,
+      error: 'All fields are required: email, password, firstName, lastName, role'
+    });
+  }
+
+  // Validate role
+  if (!VALID_ROLES.includes(role)) {
+    return res.status(400).json({
+      success: false,
+      error: `Invalid role. Must be one of: ${VALID_ROLES.join(', ')}`
+    });
+  }
+
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid email format'
+    });
+  }
+
+  // Validate password length
+  if (password.length < 6) {
+    return res.status(400).json({
+      success: false,
+      error: 'Password must be at least 6 characters long'
+    });
+  }
+
+  try {
+    if (!supabase) {
+      return res.status(500).json({
+        success: false,
+        error: 'Database not configured'
+      });
+    }
+
+    // Check if user already exists with this email and role
+    const { data: existingUser, error: checkError } = await supabase
+      .from('users')
+      .select('id, email, role')
+      .eq('email', email.toLowerCase())
+      .eq('role', role)
+      .single();
+
+    if (checkError && checkError.code !== 'PGRST116') {
+      // PGRST116 means no rows found, which is expected for new users
+      console.error('Error checking existing user:', checkError);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to check existing user'
+      });
+    }
+
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        error: 'An account with this email and role already exists'
+      });
+    }
+
+    // Hash the password
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+
+    // Insert new user
+    const { data: newUser, error: insertError } = await supabase
+      .from('users')
+      .insert({
+        email: email.toLowerCase(),
+        password_hash: passwordHash,
+        first_name: firstName,
+        last_name: lastName,
+        role: role
+      })
+      .select('id, email, first_name, last_name, role, created_at')
+      .single();
+
+    if (insertError) {
+      console.error('Error creating user:', insertError);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to create user account'
+      });
+    }
+
+    console.log(`New user created: ${newUser.email} with role: ${newUser.role}`);
+
+    res.status(201).json({
+      success: true,
+      message: 'Account created successfully',
+      data: {
+        id: newUser.id,
+        email: newUser.email,
+        firstName: newUser.first_name,
+        lastName: newUser.last_name,
+        role: newUser.role,
+        createdAt: newUser.created_at
+      }
+    });
+
+  } catch (error) {
+    console.error('Signup error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'An unexpected error occurred during signup'
+    });
+  }
+});
+
+// Sign In - Authenticate existing user
+app.post('/api/auth/signin', async (req, res) => {
+  const { email, password, role } = req.body;
+
+  // Validate required fields
+  if (!email || !password || !role) {
+    return res.status(400).json({
+      success: false,
+      error: 'Email, password, and role are required'
+    });
+  }
+
+  // Validate role
+  if (!VALID_ROLES.includes(role)) {
+    return res.status(400).json({
+      success: false,
+      error: `Invalid role. Must be one of: ${VALID_ROLES.join(', ')}`
+    });
+  }
+
+  try {
+    if (!supabase) {
+      return res.status(500).json({
+        success: false,
+        error: 'Database not configured'
+      });
+    }
+
+    // Find user with matching email and role
+    const { data: user, error: fetchError } = await supabase
+      .from('users')
+      .select('id, email, password_hash, first_name, last_name, role, created_at')
+      .eq('email', email.toLowerCase())
+      .eq('role', role)
+      .single();
+
+    if (fetchError) {
+      if (fetchError.code === 'PGRST116') {
+        // No user found with this email and role
+        return res.status(401).json({
+          success: false,
+          error: 'No account found with this email and role. Please sign up first.'
+        });
+      }
+      console.error('Error fetching user:', fetchError);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to authenticate'
+      });
+    }
+
+    // Verify password
+    const passwordValid = await bcrypt.compare(password, user.password_hash);
+
+    if (!passwordValid) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid password'
+      });
+    }
+
+    console.log(`User signed in: ${user.email} with role: ${user.role}`);
+
+    res.json({
+      success: true,
+      message: 'Signed in successfully',
+      data: {
+        id: user.id,
+        email: user.email,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        role: user.role,
+        createdAt: user.created_at
+      }
+    });
+
+  } catch (error) {
+    console.error('Signin error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'An unexpected error occurred during signin'
+    });
+  }
+});
+
+// ==================== End User Authentication ====================
 
 // ==================== LinkedIn OAuth Endpoints ====================
 
@@ -764,6 +974,8 @@ app.listen(PORT, () => {
   console.log(`\n🚀 ProofPanel Backend Server running at http://localhost:${PORT}`);
   console.log(`\n📚 Available Endpoints:`);
   console.log(`   GET  /api/health                         - Health check`);
+  console.log(`   POST /api/auth/signup                    - Create new user account`);
+  console.log(`   POST /api/auth/signin                    - Sign in existing user`);
   console.log(`   GET  /api/respondent/:hashId             - Get stored respondent attributes`);
   console.log(`   GET  /api/verification-status/:hashId    - Get verification status for a panelist`);
   console.log(`   POST /api/verification-statuses          - Get verification statuses for multiple panelists`);
