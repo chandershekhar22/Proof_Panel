@@ -199,7 +199,8 @@ export default function NewStudyPage() {
         const user = JSON.parse(storedUser);
         setUserId(user.id);
         // Use company name from user data or default
-        setCompanyName(user.companyName || `${user.firstName}'s Research`);
+        const firstName = user.firstName || user.first_name || "Research";
+        setCompanyName(user.companyName || `${firstName} Company`);
       } catch (e) {
         console.error("Failed to parse user from localStorage");
       }
@@ -257,9 +258,10 @@ export default function NewStudyPage() {
         });
       });
 
-      // Calculate payout (panelist gets ~60% of CPI)
+      // Calculate payout (~$3 per minute, rounded to nearest $5)
       const cpi = 7.50;
-      const payout = Math.round(cpi * 0.6 * surveyLength / 15); // Adjusted by survey length
+      const rawPayout = surveyLength * 3; // $3 per minute
+      const payout = Math.round(rawPayout / 5) * 5; // Round to nearest $5
 
       const response = await fetch(`${API_BASE_URL}/api/studies`, {
         method: "POST",

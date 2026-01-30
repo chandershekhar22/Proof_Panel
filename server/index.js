@@ -344,7 +344,7 @@ app.post('/api/studies', async (req, res) => {
       .from('studies')
       .insert({
         name,
-        company_name: companyName,
+        company_name: companyName || 'Research Company',
         audience,
         targeting_criteria: targetingCriteria || {},
         target_completes: targetCompletes,
