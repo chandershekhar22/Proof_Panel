@@ -287,6 +287,358 @@ app.post('/api/auth/signin', async (req, res) => {
 
 // ==================== End User Authentication ====================
 
+// ==================== Study/Survey Endpoints ====================
+
+// Helper function to validate UUID format
+function isValidUUID(str) {
+  if (!str) return false;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+}
+
+// Create and launch a new study
+app.post('/api/studies', async (req, res) => {
+  const {
+    name,
+    companyName,
+    audience,
+    targetingCriteria,
+    targetCompletes,
+    surveyLength,
+    surveyMethod,
+    externalUrl,
+    cpi,
+    payout,
+    isUrgent,
+    tags,
+    createdBy,
+    status // 'draft' or 'active' (launched)
+  } = req.body;
+
+  // Validate required fields
+  if (!name || !audience || !targetCompletes || !surveyMethod) {
+    return res.status(400).json({
+      success: false,
+      error: 'Required fields: name, audience, targetCompletes, surveyMethod'
+    });
+  }
+
+  try {
+    if (!supabase) {
+      return res.status(500).json({
+        success: false,
+        error: 'Database not configured'
+      });
+    }
+
+    // Calculate total cost
+    const effectiveCpi = cpi || 7.50;
+    const totalCost = effectiveCpi * targetCompletes;
+    const effectivePayout = payout || Math.round(effectiveCpi * 0.6 * 100) / 100; // 60% goes to panelist
+
+    // Only include created_by if it's a valid UUID
+    const validCreatedBy = isValidUUID(createdBy) ? createdBy : null;
+
+    // Insert the study
+    const { data: study, error: insertError } = await supabase
+      .from('studies')
+      .insert({
+        name,
+        company_name: companyName,
+        audience,
+        targeting_criteria: targetingCriteria || {},
+        target_completes: targetCompletes,
+        survey_length: surveyLength || 15,
+        survey_method: surveyMethod,
+        external_url: externalUrl,
+        cpi: effectiveCpi,
+        total_cost: totalCost,
+        payout: effectivePayout,
+        status: status || 'active', // Default to active (launched)
+        is_urgent: isUrgent || false,
+        created_by: validCreatedBy,
+        launched_at: status === 'active' ? new Date().toISOString() : null
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error('Error creating study:', insertError);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to create study'
+      });
+    }
+
+    // Insert tags if provided
+    if (tags && tags.length > 0) {
+      const tagInserts = tags.map(tag => ({
+        study_id: study.id,
+        tag: tag
+      }));
+
+      const { error: tagError } = await supabase
+        .from('study_tags')
+        .insert(tagInserts);
+
+      if (tagError) {
+        console.error('Error inserting tags:', tagError);
+        // Don't fail the whole request for tag errors
+      }
+    }
+
+    console.log(`New study created: ${study.name} (${study.id})`);
+
+    res.status(201).json({
+      success: true,
+      message: 'Study created successfully',
+      data: study
+    });
+
+  } catch (error) {
+    console.error('Create study error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'An unexpected error occurred'
+    });
+  }
+});
+
+// Get all studies (for insight company dashboard)
+app.get('/api/studies', async (req, res) => {
+  const { createdBy, status } = req.query;
+
+  try {
+    if (!supabase) {
+      return res.status(500).json({
+        success: false,
+        error: 'Database not configured'
+      });
+    }
+
+    let query = supabase
+      .from('studies')
+      .select(`
+        *,
+        study_tags (tag)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (createdBy) {
+      query = query.eq('created_by', createdBy);
+    }
+
+    if (status) {
+      query = query.eq('status', status);
+    }
+
+    const { data: studies, error } = await query;
+
+    if (error) {
+      console.error('Error fetching studies:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to fetch studies'
+      });
+    }
+
+    // Format the response to flatten tags
+    const formattedStudies = studies.map(study => ({
+      ...study,
+      tags: study.study_tags ? study.study_tags.map(t => t.tag) : [],
+      study_tags: undefined
+    }));
+
+    res.json({
+      success: true,
+      data: formattedStudies
+    });
+
+  } catch (error) {
+    console.error('Fetch studies error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'An unexpected error occurred'
+    });
+  }
+});
+
+// Get available surveys for panelists (member dashboard)
+app.get('/api/surveys/available', async (req, res) => {
+  try {
+    if (!supabase) {
+      return res.status(500).json({
+        success: false,
+        error: 'Database not configured'
+      });
+    }
+
+    // Get all active studies that haven't reached their target
+    const { data: studies, error } = await supabase
+      .from('studies')
+      .select(`
+        *,
+        study_tags (tag)
+      `)
+      .eq('status', 'active')
+      .order('is_urgent', { ascending: false })
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching available surveys:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to fetch available surveys'
+      });
+    }
+
+    // Format surveys for the member dashboard
+    const availableSurveys = studies.map(study => ({
+      id: study.id,
+      title: study.name,
+      company: study.company_name || 'Research Company',
+      tags: study.study_tags ? study.study_tags.map(t => t.tag) : [],
+      match: Math.floor(Math.random() * 15) + 85, // Random match 85-100% (in production, calculate based on panelist profile)
+      duration: `${study.survey_length} min`,
+      payout: study.payout,
+      urgent: study.is_urgent,
+      audience: study.audience,
+      surveyMethod: study.survey_method,
+      externalUrl: study.external_url,
+      targetCompletes: study.target_completes,
+      currentCompletes: study.current_completes || 0
+    }));
+
+    res.json({
+      success: true,
+      data: availableSurveys
+    });
+
+  } catch (error) {
+    console.error('Fetch available surveys error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'An unexpected error occurred'
+    });
+  }
+});
+
+// Get a single study by ID
+app.get('/api/studies/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    if (!supabase) {
+      return res.status(500).json({
+        success: false,
+        error: 'Database not configured'
+      });
+    }
+
+    const { data: study, error } = await supabase
+      .from('studies')
+      .select(`
+        *,
+        study_tags (tag)
+      `)
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return res.status(404).json({
+          success: false,
+          error: 'Study not found'
+        });
+      }
+      console.error('Error fetching study:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to fetch study'
+      });
+    }
+
+    const formattedStudy = {
+      ...study,
+      tags: study.study_tags ? study.study_tags.map(t => t.tag) : [],
+      study_tags: undefined
+    };
+
+    res.json({
+      success: true,
+      data: formattedStudy
+    });
+
+  } catch (error) {
+    console.error('Fetch study error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'An unexpected error occurred'
+    });
+  }
+});
+
+// Update study status (pause, complete, cancel)
+app.patch('/api/studies/:id', async (req, res) => {
+  const { id } = req.params;
+  const { status, currentCompletes } = req.body;
+
+  try {
+    if (!supabase) {
+      return res.status(500).json({
+        success: false,
+        error: 'Database not configured'
+      });
+    }
+
+    const updates = {};
+
+    if (status) {
+      updates.status = status;
+      if (status === 'completed') {
+        updates.completed_at = new Date().toISOString();
+      }
+      if (status === 'active') {
+        updates.launched_at = new Date().toISOString();
+      }
+    }
+
+    if (currentCompletes !== undefined) {
+      updates.current_completes = currentCompletes;
+    }
+
+    const { data: study, error } = await supabase
+      .from('studies')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating study:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to update study'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Study updated successfully',
+      data: study
+    });
+
+  } catch (error) {
+    console.error('Update study error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'An unexpected error occurred'
+    });
+  }
+});
+
+// ==================== End Study/Survey Endpoints ====================
+
 // ==================== LinkedIn OAuth Endpoints ====================
 
 // Get LinkedIn OAuth URL
@@ -983,6 +1335,11 @@ app.listen(PORT, () => {
   console.log(`   GET  /api/linkedin/auth-url              - Get LinkedIn OAuth URL`);
   console.log(`   POST /api/linkedin/callback              - Exchange LinkedIn code for token`);
   console.log(`   POST /api/send-verification-emails       - Send verification emails via SMTP`);
+  console.log(`   POST /api/studies                        - Create and launch a new study`);
+  console.log(`   GET  /api/studies                        - Get all studies (insight company)`);
+  console.log(`   GET  /api/studies/:id                    - Get a single study`);
+  console.log(`   PATCH /api/studies/:id                   - Update study status`);
+  console.log(`   GET  /api/surveys/available              - Get available surveys (panelists)`);
   console.log(`\n🔗 LinkedIn OAuth Configuration:`);
   console.log(`   Client ID: ${LINKEDIN_CLIENT_ID ? '✓ Configured' : '✗ Not configured'}`);
   console.log(`   Client Secret: ${LINKEDIN_CLIENT_SECRET ? '✓ Configured' : '✗ Not configured'}`);

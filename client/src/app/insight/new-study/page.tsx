@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002";
 import {
   ArrowLeft,
   Monitor,
@@ -182,6 +184,27 @@ export default function NewStudyPage() {
   const [targetCompletes, setTargetCompletes] = useState(500);
   const [surveyLength, setSurveyLength] = useState(15);
   const [surveyMethod, setSurveyMethod] = useState<"create" | "external">("create");
+  const [externalUrl, setExternalUrl] = useState("");
+  const [isUrgent, setIsUrgent] = useState(false);
+  const [isLaunching, setIsLaunching] = useState(false);
+  const [launchError, setLaunchError] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [companyName, setCompanyName] = useState("");
+
+  // Get user info from localStorage on mount
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      try {
+        const user = JSON.parse(storedUser);
+        setUserId(user.id);
+        // Use company name from user data or default
+        setCompanyName(user.companyName || `${user.firstName}'s Research`);
+      } catch (e) {
+        console.error("Failed to parse user from localStorage");
+      }
+    }
+  }, []);
 
   const handleAudienceSelect = (audienceId: string) => {
     setSelectedAudience(audienceId);
@@ -199,11 +222,83 @@ export default function NewStudyPage() {
     });
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentStep < 4) {
       setCurrentStep(currentStep + 1);
     } else {
-      router.push("/insight/surveys");
+      // Step 4: Launch the study
+      await launchStudy();
+    }
+  };
+
+  const launchStudy = async () => {
+    if (!studyName.trim()) {
+      setLaunchError("Please enter a study name");
+      return;
+    }
+
+    if (surveyMethod === "external" && !externalUrl.trim()) {
+      setLaunchError("Please enter an external survey URL");
+      return;
+    }
+
+    setIsLaunching(true);
+    setLaunchError(null);
+
+    try {
+      // Generate tags based on selected targeting criteria
+      const tags: string[] = [];
+      Object.entries(selectedTags).forEach(([category, options]) => {
+        options.forEach(option => {
+          // Add first 3 tags for display
+          if (tags.length < 3) {
+            tags.push(option);
+          }
+        });
+      });
+
+      // Calculate payout (panelist gets ~60% of CPI)
+      const cpi = 7.50;
+      const payout = Math.round(cpi * 0.6 * surveyLength / 15); // Adjusted by survey length
+
+      const response = await fetch(`${API_BASE_URL}/api/studies`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: studyName,
+          companyName: companyName,
+          audience: selectedSegment?.title || "General Audience",
+          targetingCriteria: selectedTags,
+          targetCompletes: targetCompletes,
+          surveyLength: surveyLength,
+          surveyMethod: surveyMethod,
+          externalUrl: surveyMethod === "external" ? externalUrl : null,
+          cpi: cpi,
+          payout: payout,
+          isUrgent: isUrgent,
+          tags: tags,
+          createdBy: userId,
+          status: "active", // Launch immediately
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Failed to launch study");
+      }
+
+      console.log("Study launched successfully:", data.data);
+
+      // Redirect to surveys page
+      router.push("/insight/dashboard");
+    } catch (error) {
+      console.error("Launch study error:", error);
+      setLaunchError(error instanceof Error ? error.message : "Failed to launch study");
+    } finally {
+      setIsLaunching(false);
     }
   };
 
@@ -565,6 +660,45 @@ export default function NewStudyPage() {
                 </button>
               </div>
             </div>
+
+            {/* External URL Input (shown when external method is selected) */}
+            {surveyMethod === "external" && (
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Survey URL <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="url"
+                  value={externalUrl}
+                  onChange={(e) => setExternalUrl(e.target.value)}
+                  placeholder="https://qualtrics.com/your-survey"
+                  className="w-full px-4 py-3 bg-[#12121a] border border-[#1a1a24] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 transition-colors"
+                />
+              </div>
+            )}
+
+            {/* Urgent Toggle */}
+            <div className="mb-6">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isUrgent}
+                  onChange={(e) => setIsUrgent(e.target.checked)}
+                  className="w-5 h-5 rounded border-gray-600 bg-[#12121a] text-emerald-500 focus:ring-emerald-500 focus:ring-offset-0"
+                />
+                <div>
+                  <span className="text-white font-medium">Mark as Urgent</span>
+                  <p className="text-gray-500 text-sm">Prioritize this survey in panelist dashboards</p>
+                </div>
+              </label>
+            </div>
+
+            {/* Error Message */}
+            {launchError && (
+              <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+                <p className="text-red-400 text-sm">{launchError}</p>
+              </div>
+            )}
           </>
         )}
 
@@ -710,10 +844,24 @@ export default function NewStudyPage() {
           {/* Launch Study Button */}
           <button
             onClick={handleNext}
-            className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white rounded-xl font-semibold transition-all"
+            disabled={isLaunching}
+            className={`w-full flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-semibold transition-all ${
+              isLaunching
+                ? "bg-gray-600 text-gray-400 cursor-not-allowed"
+                : "bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white"
+            }`}
           >
-            <Rocket className="w-5 h-5" />
-            Launch Study
+            {isLaunching ? (
+              <>
+                <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                Launching...
+              </>
+            ) : (
+              <>
+                <Rocket className="w-5 h-5" />
+                Launch Study
+              </>
+            )}
           </button>
         </aside>
       )}

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -16,8 +17,11 @@ import {
   Clock,
   AlertCircle,
   LogOut,
+  Loader2,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002";
 
 const sidebarItems = [
   { name: "Dashboard", href: "/member/dashboard", icon: LayoutDashboard },
@@ -34,55 +38,76 @@ const stats = [
   { label: "Verifications", value: "1", icon: CheckCircle, color: "text-emerald-400" },
 ];
 
-const availableSurveys = [
-  {
-    id: 1,
-    title: "Enterprise Software Decision Makers",
-    company: "Leading Tech Research Firm",
-    tags: ["Director+ Title", "Tech Industry", "Company 500+"],
-    match: 98,
-    duration: "25 min",
-    payout: 75,
-    urgent: true,
-  },
-  {
-    id: 2,
-    title: "Developer Tools & Workflow Study",
-    company: "Product Research Inc.",
-    tags: ["Software Developer", "GitHub Verified", "3+ Years Exp"],
-    match: 95,
-    duration: "15 min",
-    payout: 45,
-    urgent: false,
-  },
-  {
-    id: 3,
-    title: "K-12 Education Technology Survey",
-    company: "EdTech Insights",
-    tags: ["Verified Teacher", "Public School", "K-8 Grade"],
-    match: 92,
-    duration: "12 min",
-    payout: 35,
-    urgent: false,
-  },
-  {
-    id: 4,
-    title: "Healthcare IT Decision Maker Panel",
-    company: "MedResearch Global",
-    tags: ["Healthcare Industry", "Manager+", "IT Department"],
-    match: 88,
-    duration: "40 min",
-    payout: 125,
-    urgent: true,
-  },
-];
+interface Survey {
+  id: string;
+  title: string;
+  company: string;
+  tags: string[];
+  match: number;
+  duration: string;
+  payout: number;
+  urgent: boolean;
+  surveyMethod?: string;
+  externalUrl?: string;
+}
 
 export default function MemberDashboard() {
   const pathname = usePathname();
   const router = useRouter();
+  const [surveys, setSurveys] = useState<Survey[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [userName, setUserName] = useState("Member");
+
+  // Fetch available surveys on mount
+  useEffect(() => {
+    // Get user info from localStorage
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      try {
+        const user = JSON.parse(storedUser);
+        setUserName(user.firstName || "Member");
+      } catch (e) {
+        console.error("Failed to parse user from localStorage");
+      }
+    }
+
+    fetchSurveys();
+  }, []);
+
+  const fetchSurveys = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/surveys/available`);
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Failed to fetch surveys");
+      }
+
+      setSurveys(data.data || []);
+    } catch (err) {
+      console.error("Error fetching surveys:", err);
+      setError(err instanceof Error ? err.message : "Failed to load surveys");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleLogout = () => {
+    localStorage.removeItem("user");
     router.push("/");
+  };
+
+  const handleStartSurvey = (survey: Survey) => {
+    if (survey.surveyMethod === "external" && survey.externalUrl) {
+      window.open(survey.externalUrl, "_blank");
+    } else {
+      // For internal surveys, navigate to survey page (to be implemented)
+      router.push(`/member/surveys/${survey.id}`);
+    }
   };
 
   return (
@@ -153,8 +178,12 @@ export default function MemberDashboard() {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-white mb-1">Welcome back, Member</h1>
-            <p className="text-gray-400">You have 12 new survey opportunities matching your profile</p>
+            <h1 className="text-3xl font-bold text-white mb-1">Welcome back, {userName}</h1>
+            <p className="text-gray-400">
+              {surveys.length > 0
+                ? `You have ${surveys.length} new survey opportunities matching your profile`
+                : "Check back later for new survey opportunities"}
+            </p>
           </div>
           <div className="bg-[#12121a] border border-[#1a1a24] rounded-xl px-6 py-4">
             <p className="text-gray-500 text-xs mb-1">Available Balance</p>
@@ -196,53 +225,80 @@ export default function MemberDashboard() {
 
           {/* Survey Cards */}
           <div className="space-y-4">
-            {availableSurveys.map((survey) => (
-              <div
-                key={survey.id}
-                className="bg-[#12121a] border border-[#1a1a24] rounded-xl p-5 hover:border-[#2a2a36] transition-colors"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-1">
-                      <h3 className="text-white font-semibold">{survey.title}</h3>
-                      {survey.urgent && (
-                        <span className="px-2 py-0.5 bg-orange-500/20 text-orange-400 text-xs font-medium rounded">
-                          Urgent
-                        </span>
-                      )}
+            {isLoading ? (
+              <div className="bg-[#12121a] border border-[#1a1a24] rounded-xl p-8 flex flex-col items-center justify-center">
+                <Loader2 className="w-8 h-8 text-emerald-400 animate-spin mb-3" />
+                <p className="text-gray-400">Loading available surveys...</p>
+              </div>
+            ) : error ? (
+              <div className="bg-[#12121a] border border-red-500/30 rounded-xl p-8 flex flex-col items-center justify-center">
+                <AlertCircle className="w-8 h-8 text-red-400 mb-3" />
+                <p className="text-red-400 mb-2">Failed to load surveys</p>
+                <button
+                  onClick={fetchSurveys}
+                  className="text-emerald-400 hover:text-emerald-300 text-sm"
+                >
+                  Try again
+                </button>
+              </div>
+            ) : surveys.length === 0 ? (
+              <div className="bg-[#12121a] border border-[#1a1a24] rounded-xl p-8 flex flex-col items-center justify-center">
+                <FileText className="w-8 h-8 text-gray-500 mb-3" />
+                <p className="text-gray-400 mb-2">No surveys available right now</p>
+                <p className="text-gray-500 text-sm">Check back later for new opportunities</p>
+              </div>
+            ) : (
+              surveys.map((survey) => (
+                <div
+                  key={survey.id}
+                  className="bg-[#12121a] border border-[#1a1a24] rounded-xl p-5 hover:border-[#2a2a36] transition-colors"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-1">
+                        <h3 className="text-white font-semibold">{survey.title}</h3>
+                        {survey.urgent && (
+                          <span className="px-2 py-0.5 bg-orange-500/20 text-orange-400 text-xs font-medium rounded">
+                            Urgent
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-gray-500 text-sm mb-3">{survey.company}</p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {survey.tags.map((tag, index) => (
+                          <span
+                            key={index}
+                            className="px-2.5 py-1 bg-[#1a1a24] text-gray-300 text-xs rounded-lg border border-[#2a2a36]"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                    <p className="text-gray-500 text-sm mb-3">{survey.company}</p>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {survey.tags.map((tag, index) => (
-                        <span
-                          key={index}
-                          className="px-2.5 py-1 bg-[#1a1a24] text-gray-300 text-xs rounded-lg border border-[#2a2a36]"
-                        >
-                          {tag}
-                        </span>
-                      ))}
+                    <div className="flex items-center gap-6 ml-4">
+                      <div className="text-right">
+                        <p className="text-gray-500 text-xs mb-1">Match</p>
+                        <p className="text-emerald-400 font-semibold">{survey.match}%</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-gray-500 text-xs mb-1">Duration</p>
+                        <p className="text-white font-medium">{survey.duration}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-gray-500 text-xs mb-1">Payout</p>
+                        <p className="text-emerald-400 font-bold">${survey.payout}</p>
+                      </div>
+                      <button
+                        onClick={() => handleStartSurvey(survey)}
+                        className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-medium transition-colors"
+                      >
+                        Start Survey
+                      </button>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-6 ml-4">
-                    <div className="text-right">
-                      <p className="text-gray-500 text-xs mb-1">Match</p>
-                      <p className="text-emerald-400 font-semibold">{survey.match}%</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-gray-500 text-xs mb-1">Duration</p>
-                      <p className="text-white font-medium">{survey.duration}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-gray-500 text-xs mb-1">Payout</p>
-                      <p className="text-emerald-400 font-bold">${survey.payout}</p>
-                    </div>
-                    <button className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-medium transition-colors">
-                      Start Survey
-                    </button>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
