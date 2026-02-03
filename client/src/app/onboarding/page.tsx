@@ -23,6 +23,7 @@ import {
   Star,
   X,
   Check,
+  DollarSign,
 } from "lucide-react";
 
 const steps = [
@@ -33,46 +34,46 @@ const steps = [
 
 const profileCategories = [
   {
-    id: "b2b",
-    title: "B2B Professional",
-    description: "Decision makers, executives, and business professionals",
-    icon: Briefcase,
-    color: "bg-blue-500",
-  },
-  {
-    id: "developer",
-    title: "Developer & Tech",
-    description: "Software developers, engineers, and tech professionals",
+    id: "technology",
+    title: "Technology Professionals",
+    description: "Developers, Engineers, IT Decision Makers",
     icon: Monitor,
     color: "bg-emerald-500",
   },
   {
-    id: "automotive",
-    title: "Automotive Ownership",
-    description: "Vehicle owners and automotive enthusiasts",
-    icon: Car,
-    color: "bg-orange-500",
-  },
-  {
-    id: "asset",
-    title: "Asset Ownership",
-    description: "Property owners, investors, and asset holders",
-    icon: Building2,
-    color: "bg-blue-500",
-  },
-  {
     id: "healthcare",
-    title: "Healthcare Professional",
-    description: "Doctors, nurses, and medical practitioners",
+    title: "Healthcare Professionals",
+    description: "Physicians, Specialists, Allied Health",
     icon: Stethoscope,
     color: "bg-pink-500",
   },
   {
-    id: "education",
-    title: "Education Professional",
-    description: "Teachers, professors, and education administrators",
-    icon: GraduationCap,
+    id: "financial",
+    title: "Financial Professionals",
+    description: "Advisors, Wealth Managers, CFOs",
+    icon: DollarSign,
     color: "bg-amber-500",
+  },
+  {
+    id: "education",
+    title: "Education Professionals",
+    description: "Teachers, Administrators, EdTech Users",
+    icon: GraduationCap,
+    color: "bg-orange-500",
+  },
+  {
+    id: "b2b",
+    title: "B2B Decision Makers",
+    description: "C-Suite, VPs, Directors, Managers",
+    icon: Building2,
+    color: "bg-blue-500",
+  },
+  {
+    id: "vehicle",
+    title: "Vehicle Owners",
+    description: "Current Owners, Intenders, Lessees",
+    icon: Car,
+    color: "bg-orange-500",
   },
 ];
 
