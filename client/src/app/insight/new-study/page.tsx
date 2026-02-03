@@ -35,7 +35,7 @@ const steps = [
 
 const audienceSegments = [
   {
-    id: "tech",
+    id: "technology",
     title: "Technology Professionals",
     description: "Developers, Engineers, IT Decision Makers",
     icon: Monitor,
@@ -98,7 +98,7 @@ const audienceSegments = [
 
 // Targeting options for each audience type
 const targetingOptions: Record<string, { title: string; options: string[] }[]> = {
-  tech: [
+  technology: [
     { title: "Role", options: ["Frontend Developer", "Backend Developer", "Full Stack", "DevOps Engineer", "ML Engineer", "Data Engineer", "Cloud Architect", "QA Engineer", "Security Engineer"] },
     { title: "Experience Level", options: ["Junior (0-2 yrs)", "Mid (3-5 yrs)", "Senior (6-10 yrs)", "Staff/Principal (10+ yrs)", "Director/VP Level"] },
     { title: "Primary Skills", options: ["Python", "JavaScript", "Java", "Go", "Rust", "C#", "Ruby", "TypeScript", "Kotlin", "Swift"] },
@@ -147,7 +147,7 @@ const targetingOptions: Record<string, { title: string; options: string[] }[]> =
 
 // Sample profiles for each audience
 const sampleProfiles: Record<string, { name: string; title: string; score: number; credentials: string[]; avatar: string }[]> = {
-  tech: [
+  technology: [
     { name: "Sarah Chen", title: "Senior DevOps Engineer", score: 98, credentials: ["LinkedIn", "Corporate Email", "GitHub"], avatar: "SC" },
     { name: "Marcus Johnson", title: "ML Engineer", score: 96, credentials: ["LinkedIn", "Corporate Email"], avatar: "MJ" },
     { name: "Emily Rodriguez", title: "Full Stack Developer", score: 94, credentials: ["LinkedIn", "GitHub", "Stack Overflow"], avatar: "ER" },
@@ -283,6 +283,7 @@ export default function NewStudyPage() {
           tags: tags,
           createdBy: userId,
           status: "active", // Launch immediately
+          targetCategory: selectedAudience, // Pass the selected audience segment ID for filtering
         }),
       });
 

@@ -80,7 +80,23 @@ export default function MemberDashboard() {
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/surveys/available`);
+      // Get userId from sessionStorage to filter surveys by user's categories
+      let userId: string | null = null;
+      const userDataStr = sessionStorage.getItem("userData");
+      if (userDataStr) {
+        try {
+          const userData = JSON.parse(userDataStr);
+          userId = userData.id;
+        } catch {
+          // Parsing failed, userId stays null
+        }
+      }
+
+      const url = userId
+        ? `${API_BASE_URL}/api/surveys/available?userId=${userId}`
+        : `${API_BASE_URL}/api/surveys/available`;
+
+      const response = await fetch(url);
       const data = await response.json();
 
       if (!response.ok || !data.success) {

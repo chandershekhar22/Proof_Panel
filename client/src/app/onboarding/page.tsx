@@ -94,12 +94,62 @@ export default function OnboardingPage() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [showDataSelectionModal, setShowDataSelectionModal] = useState(false);
+  const [isSavingCategories, setIsSavingCategories] = useState(false);
   const [selectedDataTypes, setSelectedDataTypes] = useState({
     basicInfo: true,
     connections: true,
     messageHeaders: true,
     importedContacts: true,
   });
+
+  // Save professional categories to database
+  const saveCategoriesToDatabase = async () => {
+    const userDataStr = sessionStorage.getItem("userData");
+    if (!userDataStr || selectedCategories.length === 0) {
+      return true; // Skip if no user or no categories selected
+    }
+
+    let userId: string;
+    try {
+      const userData = JSON.parse(userDataStr);
+      userId = userData.id;
+    } catch {
+      return true; // Skip if parsing fails
+    }
+
+    if (!userId) {
+      return true; // Skip if no userId
+    }
+
+    setIsSavingCategories(true);
+    try {
+      const response = await fetch(`${API_URL}/api/users/${userId}/categories`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          professionalCategories: selectedCategories,
+        }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        // Store categories in sessionStorage for quick access
+        sessionStorage.setItem("userCategories", JSON.stringify(selectedCategories));
+        console.log("Categories saved successfully:", selectedCategories);
+        return true;
+      } else {
+        console.error("Failed to save categories:", data.error);
+        return false;
+      }
+    } catch (error) {
+      console.error("Error saving categories:", error);
+      return false;
+    } finally {
+      setIsSavingCategories(false);
+    }
+  };
 
   // Check for LinkedIn callback result
   useEffect(() => {
@@ -232,8 +282,14 @@ export default function OnboardingPage() {
     alert("GitHub verification coming soon!");
   };
 
-  const handleNext = () => {
-    if (currentStep < 3) {
+  const handleNext = async () => {
+    if (currentStep === 1) {
+      // Save categories before moving to step 2
+      const saved = await saveCategoriesToDatabase();
+      if (saved) {
+        setCurrentStep(2);
+      }
+    } else if (currentStep < 3) {
       setCurrentStep(currentStep + 1);
     } else {
       // Final step - redirect based on user role
@@ -1131,10 +1187,20 @@ export default function OnboardingPage() {
             </button>
             <button
               onClick={handleNext}
-              className="flex items-center gap-2 px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-medium transition-colors"
+              disabled={isSavingCategories}
+              className="flex items-center gap-2 px-6 py-3 bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-500/50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
             >
-              {currentStep === 3 ? "Go to Dashboard" : "Continue"}
-              <ChevronRight className="w-5 h-5" />
+              {isSavingCategories ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  {currentStep === 3 ? "Go to Dashboard" : "Continue"}
+                  <ChevronRight className="w-5 h-5" />
+                </>
+              )}
             </button>
           </div>
         </div>

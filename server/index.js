@@ -287,6 +287,133 @@ app.post('/api/auth/signin', async (req, res) => {
 
 // ==================== End User Authentication ====================
 
+// ==================== User Profile Endpoints ====================
+
+// Update user's professional categories (from onboarding)
+app.patch('/api/users/:id/categories', async (req, res) => {
+  const { id } = req.params;
+  const { professionalCategories } = req.body;
+
+  if (!professionalCategories || !Array.isArray(professionalCategories)) {
+    return res.status(400).json({
+      success: false,
+      error: 'professionalCategories array is required'
+    });
+  }
+
+  // Validate category values
+  const validCategories = ['technology', 'healthcare', 'financial', 'education', 'b2b', 'vehicle'];
+  const invalidCategories = professionalCategories.filter(cat => !validCategories.includes(cat));
+  if (invalidCategories.length > 0) {
+    return res.status(400).json({
+      success: false,
+      error: `Invalid categories: ${invalidCategories.join(', ')}. Valid categories are: ${validCategories.join(', ')}`
+    });
+  }
+
+  try {
+    if (!supabase) {
+      return res.status(500).json({
+        success: false,
+        error: 'Database not configured'
+      });
+    }
+
+    const { data: user, error } = await supabase
+      .from('users')
+      .update({ professional_categories: professionalCategories })
+      .eq('id', id)
+      .select('id, email, first_name, last_name, role, professional_categories')
+      .single();
+
+    if (error) {
+      console.error('Error updating user categories:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to update professional categories'
+      });
+    }
+
+    console.log(`Updated professional categories for user ${id}:`, professionalCategories);
+
+    res.json({
+      success: true,
+      message: 'Professional categories updated successfully',
+      data: {
+        id: user.id,
+        email: user.email,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        role: user.role,
+        professionalCategories: user.professional_categories
+      }
+    });
+
+  } catch (error) {
+    console.error('Update categories error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'An unexpected error occurred'
+    });
+  }
+});
+
+// Get user profile including professional categories
+app.get('/api/users/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    if (!supabase) {
+      return res.status(500).json({
+        success: false,
+        error: 'Database not configured'
+      });
+    }
+
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('id, email, first_name, last_name, role, professional_categories, created_at')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return res.status(404).json({
+          success: false,
+          error: 'User not found'
+        });
+      }
+      console.error('Error fetching user:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to fetch user'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        id: user.id,
+        email: user.email,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        role: user.role,
+        professionalCategories: user.professional_categories || [],
+        createdAt: user.created_at
+      }
+    });
+
+  } catch (error) {
+    console.error('Fetch user error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'An unexpected error occurred'
+    });
+  }
+});
+
+// ==================== End User Profile Endpoints ====================
+
 // ==================== Study/Survey Endpoints ====================
 
 // Helper function to validate UUID format
@@ -312,7 +439,8 @@ app.post('/api/studies', async (req, res) => {
     isUrgent,
     tags,
     createdBy,
-    status // 'draft' or 'active' (launched)
+    status, // 'draft' or 'active' (launched)
+    targetCategory // 'technology', 'healthcare', 'financial', 'education', 'b2b', 'vehicle', or 'all'
   } = req.body;
 
   // Validate required fields
@@ -322,6 +450,28 @@ app.post('/api/studies', async (req, res) => {
       error: 'Required fields: name, audience, targetCompletes, surveyMethod'
     });
   }
+
+  // Validate target category if provided
+  const validCategories = ['technology', 'healthcare', 'financial', 'education', 'b2b', 'vehicle', 'all'];
+  if (targetCategory && !validCategories.includes(targetCategory)) {
+    return res.status(400).json({
+      success: false,
+      error: `Invalid targetCategory. Must be one of: ${validCategories.join(', ')}`
+    });
+  }
+
+  // Map audience text to category if targetCategory not explicitly provided
+  const determineTargetCategory = (audienceText) => {
+    if (targetCategory) return targetCategory;
+    const text = audienceText.toLowerCase();
+    if (text.includes('technology') || text.includes('developer') || text.includes('tech')) return 'technology';
+    if (text.includes('healthcare') || text.includes('health') || text.includes('medical')) return 'healthcare';
+    if (text.includes('financial') || text.includes('finance')) return 'financial';
+    if (text.includes('education') || text.includes('teacher')) return 'education';
+    if (text.includes('b2b') || text.includes('decision maker')) return 'b2b';
+    if (text.includes('vehicle') || text.includes('automotive') || text.includes('car')) return 'vehicle';
+    return 'all';
+  };
 
   try {
     if (!supabase) {
@@ -357,7 +507,8 @@ app.post('/api/studies', async (req, res) => {
         status: status || 'active', // Default to active (launched)
         is_urgent: isUrgent || false,
         created_by: validCreatedBy,
-        launched_at: status === 'active' ? new Date().toISOString() : null
+        launched_at: status === 'active' ? new Date().toISOString() : null,
+        target_category: determineTargetCategory(audience)
       })
       .select()
       .single();
@@ -464,13 +615,36 @@ app.get('/api/studies', async (req, res) => {
 });
 
 // Get available surveys for panelists (member dashboard)
+// Filters surveys based on user's professional categories
+// - Vehicle owners can see ALL surveys
+// - Other professionals only see surveys matching their categories
+// - Users with multiple categories see surveys from all their categories
 app.get('/api/surveys/available', async (req, res) => {
+  const { userId } = req.query;
+
   try {
     if (!supabase) {
       return res.status(500).json({
         success: false,
         error: 'Database not configured'
       });
+    }
+
+    // Get user's professional categories if userId is provided
+    let userCategories = [];
+    let isVehicleOwner = false;
+
+    if (userId) {
+      const { data: user, error: userError } = await supabase
+        .from('users')
+        .select('professional_categories')
+        .eq('id', userId)
+        .single();
+
+      if (!userError && user && user.professional_categories) {
+        userCategories = user.professional_categories;
+        isVehicleOwner = userCategories.includes('vehicle');
+      }
     }
 
     // Get all active studies that haven't reached their target
@@ -492,26 +666,69 @@ app.get('/api/surveys/available', async (req, res) => {
       });
     }
 
+    // Filter surveys based on user categories
+    // - Vehicle owners see ALL surveys
+    // - Others see only surveys matching their categories or 'all' category surveys
+    let filteredStudies = studies;
+
+    if (userId && userCategories.length > 0 && !isVehicleOwner) {
+      // User has categories but is NOT a vehicle owner - filter surveys
+      filteredStudies = studies.filter(study => {
+        const surveyCategory = study.target_category || 'all';
+        // Show survey if:
+        // 1. Survey is for 'all' categories
+        // 2. Survey category matches one of user's categories
+        return surveyCategory === 'all' || userCategories.includes(surveyCategory);
+      });
+    }
+    // If user is vehicle owner OR no userId provided OR user has no categories, show all surveys
+
     // Format surveys for the member dashboard
-    const availableSurveys = studies.map(study => ({
-      id: study.id,
-      title: study.name,
-      company: study.company_name || 'Research Company',
-      tags: study.study_tags ? study.study_tags.map(t => t.tag) : [],
-      match: Math.floor(Math.random() * 15) + 85, // Random match 85-100% (in production, calculate based on panelist profile)
-      duration: `${study.survey_length} min`,
-      payout: study.payout,
-      urgent: study.is_urgent,
-      audience: study.audience,
-      surveyMethod: study.survey_method,
-      externalUrl: study.external_url,
-      targetCompletes: study.target_completes,
-      currentCompletes: study.current_completes || 0
-    }));
+    const availableSurveys = filteredStudies.map(study => {
+      // Calculate match percentage based on category alignment
+      let match = 85; // Base match for 'all' category surveys
+      const surveyCategory = study.target_category || 'all';
+
+      if (userCategories.length > 0) {
+        if (surveyCategory === 'all') {
+          match = Math.floor(Math.random() * 10) + 85; // 85-95% for general surveys
+        } else if (userCategories.includes(surveyCategory)) {
+          match = Math.floor(Math.random() * 8) + 92; // 92-100% for matching category
+        } else if (isVehicleOwner) {
+          match = Math.floor(Math.random() * 15) + 80; // 80-95% for vehicle owners viewing other categories
+        } else {
+          match = Math.floor(Math.random() * 10) + 75; // 75-85% for non-matching (shouldn't happen after filter)
+        }
+      } else {
+        match = Math.floor(Math.random() * 15) + 85; // Random 85-100% if no user categories
+      }
+
+      return {
+        id: study.id,
+        title: study.name,
+        company: study.company_name || 'Research Company',
+        tags: study.study_tags ? study.study_tags.map(t => t.tag) : [],
+        match,
+        duration: `${study.survey_length} min`,
+        payout: study.payout,
+        urgent: study.is_urgent,
+        audience: study.audience,
+        targetCategory: study.target_category || 'all',
+        surveyMethod: study.survey_method,
+        externalUrl: study.external_url,
+        targetCompletes: study.target_completes,
+        currentCompletes: study.current_completes || 0
+      };
+    });
 
     res.json({
       success: true,
-      data: availableSurveys
+      data: availableSurveys,
+      meta: {
+        totalAvailable: availableSurveys.length,
+        userCategories: userCategories,
+        isVehicleOwner: isVehicleOwner
+      }
     });
 
   } catch (error) {
