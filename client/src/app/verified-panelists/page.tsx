@@ -108,7 +108,7 @@ export default function VerifiedPanelists() {
     setError(null);
 
     try {
-      const response = await fetch("http://localhost:3002/api/verified-panelists/aggregated");
+      const response = await fetch("/api/verified-panelists/aggregated");
       const result = await response.json();
 
       if (result.success) {

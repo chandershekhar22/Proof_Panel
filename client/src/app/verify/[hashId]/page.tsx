@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { Check, Shield, Copy, ArrowRight, ArrowLeft, Linkedin, Loader2 } from "lucide-react";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002";
 
 type VerificationStep = "email-verified" | "verify-attributes" | "choose-method" | "verifying" | "completed";
 
@@ -75,7 +74,7 @@ export default function VerifyPage() {
     setIsRedirecting(true);
 
     try {
-      const response = await fetch(`${API_URL}/api/linkedin/auth-url?hashId=${hashId}`);
+      const response = await fetch(`/api/linkedin/auth-url?hashId=${hashId}`);
       const data = await response.json();
 
       if (data.success && data.authUrl) {

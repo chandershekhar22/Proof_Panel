@@ -77,7 +77,6 @@ const profileCategories = [
   },
 ];
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -123,7 +122,7 @@ export default function OnboardingPage() {
 
     setIsSavingCategories(true);
     try {
-      const response = await fetch(`${API_URL}/api/users/${userId}/categories`, {
+      const response = await fetch(`/api/users/${userId}/categories`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -196,7 +195,7 @@ export default function OnboardingPage() {
       sessionStorage.setItem("linkedinOnboarding", "true");
 
       // Get LinkedIn OAuth URL from server
-      const response = await fetch(`${API_URL}/api/auth/linkedin`);
+      const response = await fetch(`/api/auth/linkedin`);
       const data = await response.json();
 
       if (data.success && data.authUrl) {

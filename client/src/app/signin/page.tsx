@@ -14,7 +14,6 @@ import {
   Loader2,
 } from "lucide-react";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002";
 
 const roles = [
   {
@@ -81,7 +80,7 @@ export default function SigninPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/signin`, {
+      const response = await fetch(`/api/auth/signin`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

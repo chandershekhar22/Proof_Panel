@@ -27,7 +27,6 @@ import {
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002";
 
 const sidebarItems = [
   { name: "Dashboard", href: "/insight/dashboard", icon: LayoutDashboard },
@@ -101,7 +100,7 @@ export default function MyStudiesPage() {
 
     try {
       // Build URL - if we have a valid userId, filter by it
-      let url = `${API_BASE_URL}/api/studies`;
+      let url = `/api/studies`;
       if (userIdParam) {
         url += `?createdBy=${userIdParam}`;
       }
@@ -136,7 +135,7 @@ export default function MyStudiesPage() {
 
   const handleStatusChange = async (studyId: string, newStatus: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/studies/${studyId}`, {
+      const response = await fetch(`/api/studies/${studyId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),

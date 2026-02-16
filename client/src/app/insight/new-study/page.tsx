@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002";
 import {
   ArrowLeft,
   Monitor,
@@ -263,7 +262,7 @@ export default function NewStudyPage() {
       const rawPayout = surveyLength * 3; // $3 per minute
       const payout = Math.round(rawPayout / 5) * 5; // Round to nearest $5
 
-      const response = await fetch(`${API_BASE_URL}/api/studies`, {
+      const response = await fetch(`/api/studies`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

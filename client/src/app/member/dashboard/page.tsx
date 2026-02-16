@@ -21,7 +21,6 @@ import {
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002";
 
 const sidebarItems = [
   { name: "Dashboard", href: "/member/dashboard", icon: LayoutDashboard },
@@ -93,8 +92,8 @@ export default function MemberDashboard() {
       }
 
       const url = userId
-        ? `${API_BASE_URL}/api/surveys/available?userId=${userId}`
-        : `${API_BASE_URL}/api/surveys/available`;
+        ? `/api/surveys/available?userId=${userId}`
+        : `/api/surveys/available`;
 
       const response = await fetch(url);
       const data = await response.json();

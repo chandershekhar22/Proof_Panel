@@ -163,7 +163,7 @@ export default function VerificationDashboard() {
 
           // Clear backend verification statuses when config changes
           try {
-            await fetch("http://localhost:3002/api/clear-verification-statuses", {
+            await fetch("/api/clear-verification-statuses", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ hashIds: currentHashIds })
@@ -184,7 +184,7 @@ export default function VerificationDashboard() {
         // Fetch verification statuses for these items
         try {
           const hashIds = workingData.map(r => r.hashId);
-          const response = await fetch("http://localhost:3002/api/verification-statuses", {
+          const response = await fetch("/api/verification-statuses", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ hashIds })
@@ -251,7 +251,7 @@ export default function VerificationDashboard() {
 
     try {
       const hashIds = verificationItems.map(item => item.panelistId);
-      const response = await fetch("http://localhost:3002/api/verification-statuses", {
+      const response = await fetch("/api/verification-statuses", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -299,14 +299,6 @@ export default function VerificationDashboard() {
   };
 
   const handleSendVerification = async () => {
-    // Validate SMTP credentials if using SMTP
-    if (!useResendApi) {
-      if (!smtpEmail || !smtpPassword) {
-        setSendError("Please enter your SMTP email and password");
-        return;
-      }
-    }
-
     setIsSending(true);
     setSendError(null);
 
@@ -332,14 +324,12 @@ export default function VerificationDashboard() {
       });
 
       // Call the backend API
-      const response = await fetch("http://localhost:3002/api/send-verification-emails", {
+      const response = await fetch("/api/send-verification-emails", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          smtpEmail,
-          smtpPassword,
           recipients
         })
       });
@@ -644,83 +634,12 @@ export default function VerificationDashboard() {
               </div>
             </div>
 
-            {/* Email Delivery Method */}
-            <div className="mx-6 mt-4 p-4 bg-gray-50 rounded-lg">
-              <div className="flex justify-between items-center">
-                <div>
-                  <p className="font-medium text-gray-900">Email Delivery Method</p>
-                  <p className="text-gray-500 text-sm">
-                    {useResendApi ? "Using Resend API (configured on server)" : "Using your SMTP credentials"}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setUseResendApi(!useResendApi)}
-                    className={`relative w-12 h-6 rounded-full transition-colors ${
-                      useResendApi ? "bg-blue-600" : "bg-gray-300"
-                    }`}
-                  >
-                    <span
-                      className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
-                        useResendApi ? "left-7" : "left-1"
-                      }`}
-                    />
-                  </button>
-                  <span className="text-gray-700 font-medium">
-                    {useResendApi ? "Resend API" : "SMTP"}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* SMTP Credentials Form or Resend API Info */}
+            {/* Email Delivery Info */}
             <div className="mx-6 mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-              {useResendApi ? (
-                <>
-                  <h3 className="font-medium text-blue-700">Using Resend API</h3>
-                  <p className="text-blue-600 text-sm mt-2">
-                    Emails will be sent using the Resend API configured on the server. Make sure RESEND_API_KEY is set in your server environment variables.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <h3 className="font-medium text-blue-700">Enter Your Email SMTP Credentials</h3>
-                  <p className="text-blue-600 text-sm mt-2 mb-4">
-                    Emails will be sent from your email account. For Gmail, use an App Password (not your regular password).
-                  </p>
-
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-gray-700 text-sm font-medium mb-1">
-                        SMTP Email (e.g., your-email@gmail.com)
-                      </label>
-                      <input
-                        type="email"
-                        value={smtpEmail}
-                        onChange={(e) => setSmtpEmail(e.target.value)}
-                        placeholder="your-email@gmail.com"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-gray-700 text-sm font-medium mb-1">
-                        SMTP Password / App Password
-                      </label>
-                      <input
-                        type="password"
-                        value={smtpPassword}
-                        onChange={(e) => setSmtpPassword(e.target.value)}
-                        placeholder="Enter your app password"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
-                      />
-                    </div>
-                  </div>
-
-                  <p className="text-gray-500 text-xs mt-3">
-                    Your credentials are only used for this session and are not stored on the server.
-                  </p>
-                </>
-              )}
+              <h3 className="font-medium text-blue-700">Server-Configured Email</h3>
+              <p className="text-blue-600 text-sm mt-2">
+                Verification emails will be sent using the SMTP credentials configured on the server. Only test accounts (TEST-*) receive real emails; others are simulated.
+              </p>
             </div>
 
             {/* Error Message */}
@@ -751,7 +670,7 @@ export default function VerificationDashboard() {
               </button>
               <button
                 onClick={handleSendVerification}
-                disabled={isSending || (!useResendApi && (!smtpEmail || !smtpPassword))}
+                disabled={isSending}
                 className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
               >
                 {isSending ? (

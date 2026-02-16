@@ -4,7 +4,6 @@ import { useEffect, useState, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { XCircle, Loader2, CheckCircle } from "lucide-react";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002";
 
 export default function LinkedInCallbackPage() {
   const searchParams = useSearchParams();
@@ -58,8 +57,8 @@ export default function LinkedInCallbackPage() {
       try {
         // Use the auth endpoint for onboarding flow
         const endpoint = isOnboarding
-          ? `${API_URL}/api/auth/linkedin/callback`
-          : `${API_URL}/api/linkedin/callback`;
+          ? `/api/auth/linkedin/callback`
+          : `/api/linkedin/callback`;
 
         const response = await fetch(endpoint, {
           method: "POST",
